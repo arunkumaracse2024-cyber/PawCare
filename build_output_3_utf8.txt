@@ -1,0 +1,30 @@
+﻿Running Gradle task 'assembleDebug'...                          
+flutter : 
+At line:1 char:1
++ flutter build apk --debug > build_output_3.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [] 
+   , RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file 'D:\petpaw.org\android\build.gradle.kts' 
+line: 23
+
+* What went wrong:
+Cannot run Project.afterEvaluate(Action) when the 
+project is already evaluated.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log 
+output.
+> Run with --scan to generate a Build Scan (Powered by 
+Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1s
+Running Gradle task 'assembleDebug'...                           1,775ms
+Gradle task assembleDebug failed with exit code 1

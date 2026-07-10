@@ -1,0 +1,190 @@
+{
+    "species": [
+        {
+            "id": "dog",
+            "name": "Dog",
+            "commonFoods": {
+                "safe": [
+                    "Apples (no seeds)",
+                    "Carrots",
+                    "Cooked Chicken",
+                    "Salmon",
+                    "Blueberries",
+                    "Pumpkin",
+                    "Rice"
+                ],
+                "unsafe": [
+                    "Chocolate",
+                    "Grapes & Raisins",
+                    "Onions & Garlic",
+                    "Xylitol (sweetener)",
+                    "Avocado",
+                    "Macadamia Nuts",
+                    "Caffeine"
+                ]
+            },
+            "breeds": [
+                {
+                    "id": "golden_retriever",
+                    "name": "Golden Retriever",
+                    "temperament": "Friendly, Intelligent, Devoted",
+                    "lifespan": "10-12 years",
+                    "sizeRange": "25-34 kg",
+                    "careGuide": "Requires daily exercise, weekly brushing, and regular mental stimulation.",
+                    "funFact": "They have water-resistant double coats and webbed feet, making them excellent swimmers."
+                },
+                {
+                    "id": "german_shepherd",
+                    "name": "German Shepherd",
+                    "temperament": "Confident, Courageous, Smart",
+                    "lifespan": "7-10 years",
+                    "sizeRange": "30-40 kg",
+                    "careGuide": "Needs consistent obedience training, heavy physical activation, and early socialization.",
+                    "funFact": "They are the second most registered breed in the US, highly popular as working dogs."
+                },
+                {
+                    "id": "french_bulldog",
+                    "name": "French Bulldog",
+                    "temperament": "Playful, Adaptable, Smart, Quiet",
+                    "lifespan": "10-12 years",
+                    "sizeRange": "9-13 kg",
+                    "careGuide": "Keep cool in hot weather due to breathing sensitivity. Low exercise requirements.",
+                    "funFact": "They cannot swim due to their squat frame and heavy head structure."
+                }
+            ],
+            "vaccinations": [
+                {
+                    "name": "DHPP (Distemper, Hepatitis, Parvovirus, Parainfluenza)",
+                    "suggestedAge": "6-8 weeks, then every 3-4 weeks until 16 weeks"
+                },
+                {
+                    "name": "Rabies",
+                    "suggestedAge": "12-16 weeks, then booster in 1 year"
+                },
+                {
+                    "name": "Bordetella (Kennel Cough)",
+                    "suggestedAge": "10-12 weeks, updated yearly"
+                }
+            ]
+        },
+        {
+            "id": "cat",
+            "name": "Cat",
+            "commonFoods": {
+                "safe": [
+                    "Cooked Meat",
+                    "Fish",
+                    "Scrambled Eggs",
+                    "Spinach",
+                    "Cantaloops",
+                    "Oatmeal"
+                ],
+                "unsafe": [
+                    "Milk/Dairy (lactose intolerant)",
+                    "Onions & Garlic",
+                    "Raw Fish/Meat",
+                    "Chocolate",
+                    "Alcohol",
+                    "Grapes",
+                    "Caffeine"
+                ]
+            },
+            "breeds": [
+                {
+                    "id": "persian",
+                    "name": "Persian Cat",
+                    "temperament": "Quiet, Sweet, Dignified",
+                    "lifespan": "12-15 years",
+                    "sizeRange": "3.5-5.5 kg",
+                    "careGuide": "Requires daily grooming to prevent coat mats. Keep indoors.",
+                    "funFact": "They have one of the oldest breed records in the world, dating back to 1600s Persia."
+                },
+                {
+                    "id": "maine_coon",
+                    "name": "Maine Coon",
+                    "temperament": "Friendly, Playful, Gentle Giant",
+                    "lifespan": "12-15 years",
+                    "sizeRange": "6-11 kg",
+                    "careGuide": "Need space to grow and run. Brush their thick shaggy coat twice weekly.",
+                    "funFact": "They are well-adapted for harsh climates, having large snowshoe paws and a water-resistant coat."
+                },
+                {
+                    "id": "siamese",
+                    "name": "Siamese Cat",
+                    "temperament": "Vocal, Social, Affectionate",
+                    "lifespan": "15-20 years",
+                    "sizeRange": "3.5-5.5 kg",
+                    "careGuide": "Thrives on human companionship, very active and requires interactive toys.",
+                    "funFact": "Siamese kittens are born completely white and progress colors as they age."
+                }
+            ],
+            "vaccinations": [
+                {
+                    "name": "FVRCP (Rhinotracheitis, Calicivirus, Panleukopenia)",
+                    "suggestedAge": "6-8 weeks, then every 3-4 weeks until 16 weeks"
+                },
+                {
+                    "name": "Rabies",
+                    "suggestedAge": "12-16 weeks, then booster in 1 year"
+                },
+                {
+                    "name": "FeLV (Feline Leukemia Virus)",
+                    "suggestedAge": "8 weeks, then booster in 3 weeks"
+                }
+            ]
+        },
+        {
+            "id": "bird",
+            "name": "Bird",
+            "commonFoods": {
+                "safe": [
+                    "Apples (no seeds)",
+                    "Leafy Greens",
+                    "Carrots",
+                    "Bananas",
+                    "Pellets",
+                    "Seed Mixes (moderation)"
+                ],
+                "unsafe": [
+                    "Avocado (highly toxic)",
+                    "Chocolate",
+                    "Apple Seeds",
+                    "Alcohol",
+                    "Caffeine",
+                    "Onions",
+                    "Salt"
+                ]
+            },
+            "breeds": [
+                {
+                    "id": "budgerigar",
+                    "name": "Budgerigar (Parakeet)",
+                    "temperament": "Social, Playful, Chatterbox",
+                    "lifespan": "5-10 years",
+                    "sizeRange": "30-40 g",
+                    "careGuide": "Needs flight cages and daily out-of-cage supervised time. Fresh water is critical.",
+                    "funFact": "They can learn up to hundreds of words and can mimic human voices."
+                },
+                {
+                    "id": "cockatiel",
+                    "name": "Cockatiel",
+                    "temperament": "Gentle, Cuddly, Whistling",
+                    "lifespan": "10-15 years",
+                    "sizeRange": "80-100 g",
+                    "careGuide": "Place cage in active living room. Provide chewing toys to satisfy beak habits.",
+                    "funFact": "Their crest position is a mood indicator: straight up means startled or excited, flat means angry."
+                }
+            ],
+            "vaccinations": [
+                {
+                    "name": "Polyomavirus",
+                    "suggestedAge": "4-5 weeks, booster in 3 weeks"
+                },
+                {
+                    "name": "Pacheco's Disease (optional)",
+                    "suggestedAge": "As recommended by avian veterinarian"
+                }
+            ]
+        }
+    ]
+}

@@ -411,16 +411,52 @@ class _AddRecordSheetState extends State<AddRecordSheet> {
             const SizedBox(height: 20),
 
             // Title
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'Diagnosis / Name',
-                prefixIcon: Icon(Icons.bookmark_added_outlined),
-                hintText: 'e.g. Parvovirus Vaccine, or Gastro Medication',
+            if (_type == 'Vaccination' && !Provider.of<AppState>(context, listen: false).isDatasetLoading)
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text == '') {
+                    return const Iterable<String>.empty();
+                  }
+                  final state = Provider.of<AppState>(context, listen: false);
+                  final pet = state.selectedPet!;
+                  final petVaccines = state.vaccines
+                      .where((v) => v.species == pet.species.toLowerCase())
+                      .map((v) => v.vaccineName)
+                      .toList();
+                      
+                  return petVaccines.where((String option) {
+                    return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                  });
+                },
+                onSelected: (String selection) {
+                  _title = selection;
+                },
+                fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
+                  return TextFormField(
+                    controller: fieldTextEditingController,
+                    focusNode: fieldFocusNode,
+                    decoration: const InputDecoration(
+                      labelText: 'Vaccination Name',
+                      prefixIcon: Icon(Icons.vaccines_rounded),
+                      hintText: 'Start typing to see suggestions',
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Please enter a name' : null,
+                    onSaved: (v) => _title = v?.trim() ?? '',
+                  );
+                },
+              )
+            else
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: 'Diagnosis / Name',
+                  prefixIcon: Icon(Icons.bookmark_added_outlined),
+                  hintText: 'e.g. Parvovirus Vaccine, or Gastro Medication',
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Please enter a name' : null,
+                onSaved: (v) => _title = v?.trim() ?? '',
               ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Please enter a name' : null,
-              onSaved: (v) => _title = v?.trim() ?? '',
-            ),
             const SizedBox(height: 16),
 
             // Type

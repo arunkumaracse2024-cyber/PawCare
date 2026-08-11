@@ -1,28 +1,48 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import '../models/pet.dart';
 import '../models/reminder.dart';
 import '../models/behaviour_log.dart';
 import '../models/health_record.dart';
-import '../models/encyclopedia.dart';
 import '../services/firebase_service.dart';
+import '../models/pet_breed.dart';
+import '../models/pet_food.dart';
+import '../models/pet_vaccine.dart';
+import '../models/pet_disease.dart';
+import '../models/pet_behaviour.dart';
+import '../models/pet_environment.dart';
+import '../models/pet_growth_stage.dart';
+import '../models/pet_care_guide.dart';
+import '../services/pet_data_repository.dart';
+import '../services/json_pet_data_repository.dart';
+import '../services/care_plan_service.dart';
 
 class AppState extends ChangeNotifier {
   final FirebaseService _db = FirebaseService();
 
-  List<Species> _speciesList = [];
   List<Pet> _pets = [];
   Pet? _selectedPet;
   List<PetReminder> _reminders = [];
   List<BehaviourLog> _behaviourLogs = [];
   List<HealthRecord> _healthRecords = [];
 
+  // Structured Knowledge Data
+  List<PetBreed> breeds = [];
+  List<PetFood> foods = [];
+  List<PetVaccine> vaccines = [];
+  List<PetDisease> diseases = [];
+  List<PetBehaviour> behaviours = [];
+  List<PetEnvironment> environments = [];
+  List<PetGrowthStage> growthStages = [];
+  List<PetCareGuide> careGuides = [];
+
   bool _isLoading = false;
+  bool isDatasetLoading = false;
+  String? datasetError;
   bool _isDarkMode = false;
+  
+  final PetDataRepository _petDataRepo = JsonPetDataRepository();
 
   // Getters
-  List<Species> get speciesList => _speciesList;
   List<Pet> get pets => _pets;
   Pet? get selectedPet => _selectedPet;
   List<PetReminder> get reminders => _reminders;
@@ -40,7 +60,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> _initApp() async {
     _setLoading(true);
-    await loadEncyclopedia();
+    await loadPetDatasets(); // Load structured datasets first
     if (_db.isAuthenticated) {
       await refreshState();
     }
@@ -58,24 +78,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ENCYCLOPEDIA LOAD ---
-  Future<void> loadEncyclopedia() async {
+  // --- DATASET LOAD ---
+  Future<void> loadPetDatasets() async {
+    isDatasetLoading = true;
+    datasetError = null;
+    notifyListeners();
+
     try {
-      final jsonStr = await rootBundle.loadString(
-        'assets/data/pet_encyclopedia.json',
-      );
-      final Map<String, dynamic> data = json.decode(jsonStr);
-      final List<dynamic> list = data['species'] ?? [];
-      _speciesList = list
-          .map((s) => Species.fromMap(s as Map<String, dynamic>))
-          .toList();
-      debugPrint(
-        '[AppState] Loaded ${_speciesList.length} species from encyclopedia.',
-      );
+      breeds = await _petDataRepo.getBreeds();
+      foods = await _petDataRepo.getFoods();
+      vaccines = await _petDataRepo.getVaccines();
+      diseases = await _petDataRepo.getDiseases();
+      behaviours = await _petDataRepo.getBehaviours();
+      environments = await _petDataRepo.getEnvironments();
+      growthStages = await _petDataRepo.getGrowthStages();
+      careGuides = await _petDataRepo.getCareGuides();
     } catch (e) {
-      debugPrint('[AppState] Error loading encyclopedia: $e');
+      datasetError = 'Failed to load datasets: $e';
+      debugPrint('[AppState] $datasetError');
+    } finally {
+      isDatasetLoading = false;
+      notifyListeners();
     }
   }
+
+
 
   // --- AUTH METHODS ---
   Future<void> login(String email, String password) async {
@@ -160,45 +187,15 @@ class AppState extends ChangeNotifier {
     try {
       final petId = 'pet_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Auto-generate milestone checklist based on species
-      final checklist = [
-        ChecklistItem(
-          id: '${petId}_chk1',
-          title: 'Prepare room and bedding',
-          category: 'Day 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk2',
-          title: 'Buy high quality specialized food',
-          category: 'Day 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk3',
-          title: 'Install tags and microchip',
-          category: 'Week 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk4',
-          title: 'Establish veterinary contact',
-          category: 'Week 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk5',
-          title: 'Introduce leash and collar routines',
-          category: 'Week 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk6',
-          title: 'Start initial social play training',
-          category: 'Month 1',
-          isDone: false,
-        ),
-      ];
+      // Auto-generate milestone checklist based on CarePlanService
+      final checklist = CarePlanService.generateChecklist(
+        petId: petId,
+        species: species,
+        breed: breed,
+        age: age,
+        careGuides: careGuides,
+        growthStages: growthStages,
+      );
 
       final newPet = Pet(
         id: petId,
@@ -213,24 +210,14 @@ class AppState extends ChangeNotifier {
 
       await _db.savePet(newPet);
 
-      // Programmatically schedule reminder recommendations from species checklist if available
-      final speciesMatch = _speciesList.firstWhere(
-        (s) => s.id == species.toLowerCase(),
-        orElse: () => _speciesList.first,
+      // Programmatically schedule reminder recommendations from CarePlanService
+      final generatedReminders = CarePlanService.generateReminders(
+        petId: petId,
+        species: species,
+        vaccines: vaccines,
       );
-      for (int i = 0; i < speciesMatch.recommendedVaccines.length; i++) {
-        final v = speciesMatch.recommendedVaccines[i];
-        final reminder = PetReminder(
-          id: '${petId}_vax_$i',
-          petId: petId,
-          title: v.name,
-          type: 'Vaccine',
-          dateTime: DateTime.now().add(
-            Duration(days: (i + 1) * 30),
-          ), // spaced reminders
-          repeatOption: 'None',
-          isDone: false,
-        );
+      
+      for (final reminder in generatedReminders) {
         await _db.saveReminder(reminder);
       }
 

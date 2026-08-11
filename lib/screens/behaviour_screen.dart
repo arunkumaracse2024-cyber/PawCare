@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../theme/app_theme.dart';
 import '../../state/app_state.dart';
 import '../../models/behaviour_log.dart';
+import '../../models/pet_behaviour.dart';
 
 class BehaviourScreen extends StatefulWidget {
   const BehaviourScreen({super.key});
@@ -123,6 +124,8 @@ class _BehaviourScreenState extends State<BehaviourScreen>
     }
 
     final recentLogs = logs.length > 7 ? logs.sublist(logs.length - 7) : logs;
+    final state = Provider.of<AppState>(context);
+    final pet = state.selectedPet!;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -143,8 +146,80 @@ class _BehaviourScreenState extends State<BehaviourScreen>
           const SizedBox(height: 12),
           _buildSleepChart(recentLogs, isDark),
           const SizedBox(height: 40),
+          
+          if (!state.isDatasetLoading && state.behaviours.isNotEmpty)
+            _buildBehaviourGuideCard(pet.species, isDark, state.behaviours),
+            
+          const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  Widget _buildBehaviourGuideCard(String species, bool isDark, List<PetBehaviour> allBehaviours) {
+    final speciesBehaviours = allBehaviours.where((b) => b.species == species.toLowerCase()).toList();
+
+    if (speciesBehaviours.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Species Behavior Guide',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Common behavioral traits and what they mean for a $species.',
+          style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
+        ),
+        const SizedBox(height: 16),
+        ...speciesBehaviours.map((b) {
+          final color = b.category == 'positive'
+              ? Colors.green
+              : b.category == 'concerning'
+                  ? Colors.orange
+                  : b.category == 'aggressive'
+                      ? Colors.red
+                      : Colors.blue;
+                      
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ExpansionTile(
+              leading: Icon(
+                Icons.pets,
+                color: color,
+              ),
+              title: Text(
+                b.behaviour,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                'Category: ${b.category.toUpperCase()}',
+                style: TextStyle(fontSize: 12, color: color),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('Possible Meaning:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(b.possibleMeaning),
+                      const SizedBox(height: 12),
+                      const Text('Reasons:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(b.possibleReasons.join(', ')),
+                      const SizedBox(height: 12),
+                      const Text('Action:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(b.recommendedOwnerAction),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 

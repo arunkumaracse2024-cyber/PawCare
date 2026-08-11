@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../state/app_state.dart';
-import '../../models/encyclopedia.dart';
+import '../../models/pet_breed.dart';
 
 class EncyclopediaScreen extends StatefulWidget {
   const EncyclopediaScreen({super.key});
@@ -16,13 +16,23 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  List<String> _availableSpecies = [];
 
   @override
   void initState() {
     super.initState();
     final state = Provider.of<AppState>(context, listen: false);
+    
+    // Extract unique species from the loaded breeds
+    final Set<String> speciesSet = {};
+    for (var breed in state.breeds) {
+      speciesSet.add(breed.species.toLowerCase());
+    }
+    _availableSpecies = speciesSet.toList()..sort();
+    
+
     _tabController = TabController(
-      length: state.speciesList.length,
+      length: _availableSpecies.isEmpty ? 1 : _availableSpecies.length,
       vsync: this,
     );
     _searchController.addListener(() {
@@ -39,16 +49,25 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
     super.dispose();
   }
 
+  String _capitalize(String s) => s.isNotEmpty ? '${s[0].toUpperCase()}${s.substring(1)}' : s;
+
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    if (state.speciesList.isEmpty) {
+    if (state.isDatasetLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Encyclopedia')),
         body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_availableSpecies.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Encyclopedia')),
+        body: const Center(child: Text('No breed data available.')),
       );
     }
 
@@ -60,7 +79,7 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
           indicatorColor: AppTheme.orangePrimary,
           labelColor: AppTheme.orangeDeep,
           unselectedLabelColor: isDark ? Colors.white60 : Colors.black45,
-          tabs: state.speciesList.map((s) => Tab(text: s.name)).toList(),
+          tabs: _availableSpecies.map((s) => Tab(text: _capitalize(s))).toList(),
         ),
       ),
       body: Column(
@@ -86,10 +105,13 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: state.speciesList.map((species) {
-                final filteredBreeds = species.breeds.where((b) {
-                  return b.name.toLowerCase().contains(_searchQuery) ||
-                      b.temperament.toLowerCase().contains(_searchQuery);
+              children: _availableSpecies.map((speciesStr) {
+                // Filter breeds for this species
+                final speciesBreeds = state.breeds.where((b) => b.species == speciesStr).toList();
+                
+                final filteredBreeds = speciesBreeds.where((b) {
+                  return b.breed.toLowerCase().contains(_searchQuery) ||
+                      b.temperament.join(' ').toLowerCase().contains(_searchQuery);
                 }).toList();
 
                 if (filteredBreeds.isEmpty) {
@@ -114,7 +136,7 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
                   itemCount: filteredBreeds.length,
                   itemBuilder: (context, index) {
                     final breed = filteredBreeds[index];
-                    return _buildBreedCard(context, species, breed, isDark);
+                    return _buildBreedCard(context, breed, isDark);
                   },
                 );
               }).toList(),
@@ -127,19 +149,18 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
 
   Widget _buildBreedCard(
     BuildContext context,
-    Species species,
-    Breed breed,
+    PetBreed breed,
     bool isDark,
   ) {
-    final avatarColor = species.id.toLowerCase() == 'dog'
+    final avatarColor = breed.species == 'dog'
         ? AppTheme.orangePrimary
-        : species.id.toLowerCase() == 'cat'
+        : breed.species == 'cat'
         ? AppTheme.tealSecondary
         : Colors.amber;
 
-    final speciesIcon = species.id.toLowerCase() == 'dog'
+    final speciesIcon = breed.species == 'dog'
         ? Icons.pets_rounded
-        : species.id.toLowerCase() == 'cat'
+        : breed.species == 'cat'
         ? Icons.catching_pokemon_rounded
         : Icons.flutter_dash_rounded;
 
@@ -148,7 +169,7 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => BreedDetailScreen(species: species, breed: breed),
+              builder: (_) => BreedDetailScreen(breed: breed),
             ),
           );
         },
@@ -168,7 +189,7 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                breed.name,
+                breed.breed,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -178,7 +199,7 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                breed.temperament.split(',').first,
+                breed.temperament.isNotEmpty ? breed.temperament.first : '',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? Colors.white60 : Colors.black54,
@@ -196,34 +217,56 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
 }
 
 class BreedDetailScreen extends StatelessWidget {
-  final Species species;
-  final Breed breed;
+  final PetBreed breed;
 
   const BreedDetailScreen({
     super.key,
-    required this.species,
     required this.breed,
   });
 
   @override
   Widget build(BuildContext context) {
+    final state = Provider.of<AppState>(context, listen: false);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final avatarColor = species.id.toLowerCase() == 'dog'
+    final avatarColor = breed.species == 'dog'
         ? AppTheme.orangePrimary
-        : species.id.toLowerCase() == 'cat'
+        : breed.species == 'cat'
         ? AppTheme.tealSecondary
         : Colors.amber;
 
-    final speciesIcon = species.id.toLowerCase() == 'dog'
+    final speciesIcon = breed.species == 'dog'
         ? Icons.pets_rounded
-        : species.id.toLowerCase() == 'cat'
+        : breed.species == 'cat'
         ? Icons.catching_pokemon_rounded
         : Icons.flutter_dash_rounded;
 
+    // Retrieve foods for this species from AppState
+    final safeFoods = state.foods
+        .where((f) => f.species.contains(breed.species) && f.classification == 'safe')
+        .map((f) => f.foodName)
+        .toList();
+    final toxicFoods = state.foods
+        .where((f) => f.species.contains(breed.species) && f.classification == 'toxic')
+        .map((f) => f.foodName)
+        .toList();
+
+    // Retrieve vaccines for this species
+    final speciesVaccines = state.vaccines.where((v) => v.species == breed.species).toList();
+
+    String lifespanDisplay = breed.lifespanString ?? '';
+    if (lifespanDisplay.isEmpty && breed.lifespanYears != null) {
+      lifespanDisplay = '${breed.lifespanYears!.min}-${breed.lifespanYears!.max} years';
+    }
+
+    String weightDisplay = breed.weightString ?? '';
+    if (weightDisplay.isEmpty && breed.weightKg != null) {
+      weightDisplay = '${breed.weightKg!.min}-${breed.weightKg!.max} kg';
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text(breed.name)),
+      appBar: AppBar(title: Text(breed.breed)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -259,7 +302,7 @@ class BreedDetailScreen extends StatelessWidget {
                 Expanded(
                   child: _buildInfoSquare(
                     'Lifespan',
-                    breed.lifespan,
+                    lifespanDisplay,
                     Icons.hourglass_empty_rounded,
                     Colors.deepOrangeAccent,
                   ),
@@ -268,7 +311,7 @@ class BreedDetailScreen extends StatelessWidget {
                 Expanded(
                   child: _buildInfoSquare(
                     'Size/Weight',
-                    breed.sizeRange,
+                    weightDisplay,
                     Icons.monitor_weight_outlined,
                     AppTheme.tealSecondary,
                   ),
@@ -278,181 +321,177 @@ class BreedDetailScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Temperament & Care Tags
-            const Text(
-              'Temperament',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: breed.temperament.split(',').map((t) {
-                return Chip(
-                  label: Text(t.trim()),
-                  backgroundColor: isDark
-                      ? const Color(0xFF2C2C2C)
-                      : Colors.grey.shade100,
-                  side: BorderSide.none,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
+            if (breed.temperament.isNotEmpty) ...[
+              const Text(
+                'Temperament',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: breed.temperament.map((t) {
+                  return Chip(
+                    label: Text(t.trim()),
+                    backgroundColor: isDark
+                        ? const Color(0xFF2C2C2C)
+                        : Colors.grey.shade100,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+            ],
 
-            // Care Guide
-            const Text(
-              'Care Guidelines',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  breed.careGuide,
-                  style: const TextStyle(fontSize: 14, height: 1.4),
+            // Description
+            if (breed.description.isNotEmpty) ...[
+              const Text(
+                'About',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    breed.description,
+                    style: const TextStyle(fontSize: 14, height: 1.4),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
+            ],
 
-            // Fun Fact Action Alert
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+            // Care Guidelines
+            if (breed.exerciseNeeds.isNotEmpty || breed.groomingNeeds.isNotEmpty) ...[
+               const Text(
+                'Care Guidelines',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
-              child: Row(
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (breed.exerciseNeeds.isNotEmpty)
+                        Text('Exercise: ${breed.exerciseNeeds}', style: const TextStyle(height: 1.4)),
+                      if (breed.groomingNeeds.isNotEmpty)
+                        Text('Grooming: ${breed.groomingNeeds}', style: const TextStyle(height: 1.4)),
+                      if (breed.climatePreference.isNotEmpty)
+                        Text('Climate: ${breed.climatePreference}', style: const TextStyle(height: 1.4)),
+                    ]
+                  )
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // --- FOOD SAFETY GUIDE ---
+            if (safeFoods.isNotEmpty || toxicFoods.isNotEmpty) ...[
+              const Text(
+                'Food Safety Checker',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.lightbulb_rounded,
-                    color: Colors.amber,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Mascot Fun Fact!',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          breed.funFact,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark
-                                ? Colors.white.withOpacity(0.8)
-                                : Colors.black.withOpacity(0.8),
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
+                    child: _buildFoodContainer(
+                      title: 'Safe Foods',
+                      foods: safeFoods,
+                      isSafe: true,
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildFoodContainer(
+                      title: 'Toxic Foods',
+                      foods: toxicFoods,
+                      isSafe: false,
+                      isDark: isDark,
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 28),
-
-            // --- FOOD SAFETY GUIDE ---
-            const Text(
-              'Food Safety Checker',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildFoodContainer(
-                    title: 'Safe Foods',
-                    foods: species.safeFoods,
-                    isSafe: true,
-                    isDark: isDark,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildFoodContainer(
-                    title: 'Toxic Foods',
-                    foods: species.unsafeFoods,
-                    isSafe: false,
-                    isDark: isDark,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
+              const SizedBox(height: 28),
+            ],
 
             // --- VACCINE RECOMMENDATIONS ---
-            const Text(
-              'Recommended Core Vaccines',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: species.recommendedVaccines.map((v) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.check_circle_outline_rounded,
-                            color: AppTheme.tealSecondary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                TextTheme.of(context).bodyMedium == null
-                                    ? Text(
-                                        v.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                      )
-                                    : Text(
-                                        v.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Timing: ${v.suggestedAge}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
+            if (speciesVaccines.isNotEmpty) ...[
+              const Text(
+                'Recommended Core Vaccines',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: speciesVaccines.map((v) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline_rounded,
+                              color: AppTheme.tealSecondary,
+                              size: 20,
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  TextTheme.of(context).bodyMedium == null
+                                      ? Text(
+                                          v.vaccineName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        )
+                                      : Text(
+                                          v.vaccineName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Timing: ${v.recommendedAge}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  if (v.purpose.isNotEmpty)
+                                    Text(
+                                      v.purpose,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
+              const SizedBox(height: 32),
+            ],
 
             // Health Disclaimer warning
             Container(
@@ -471,7 +510,7 @@ class BreedDetailScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Disclaimer: This guide is for informational purposes only. Consult a veterinarian immediately for professional health/diet checkups.',
+                      'Disclaimer: Vaccination schedules may vary by region, lifestyle, health status and veterinary recommendation. This guide is for informational purposes only. Consult a veterinarian immediately for professional health/diet checkups.',
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? Colors.white60 : Colors.black54,
@@ -508,7 +547,7 @@ class BreedDetailScreen extends StatelessWidget {
             Icon(icon, color: color, size: 24),
             const SizedBox(height: 8),
             Text(
-              value,
+              value.isNotEmpty ? value : 'N/A',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               textAlign: TextAlign.center,
               maxLines: 1,
@@ -563,6 +602,8 @@ class BreedDetailScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
+          if (foods.isEmpty)
+             const Text('No data', style: TextStyle(fontSize: 12, color: Colors.grey)),
           ...foods.map((food) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -589,3 +630,4 @@ class BreedDetailScreen extends StatelessWidget {
     );
   }
 }
+

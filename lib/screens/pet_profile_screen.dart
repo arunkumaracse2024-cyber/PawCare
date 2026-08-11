@@ -44,13 +44,10 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
 
   void _updateBreedList() {
     final state = Provider.of<AppState>(context, listen: false);
-    final species = state.speciesList.firstWhere(
-      (s) => s.id.toLowerCase() == _species.toLowerCase(),
-      orElse: () => state.speciesList.first,
-    );
+    final relevantBreeds = state.breeds.where((b) => b.species.toLowerCase() == _species.toLowerCase()).toList();
 
     setState(() {
-      _availableBreeds = species.breeds.map((b) => b.name).toList();
+      _availableBreeds = relevantBreeds.map((b) => b.breed).toList();
       if (_availableBreeds.isNotEmpty && !_availableBreeds.contains(_breed)) {
         _breed = _availableBreeds.first;
       }
@@ -251,10 +248,10 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
                               _updateBreedList();
                             }
                           },
-                          items: state.speciesList.map((s) {
+                          items: state.breeds.map((b) => b.species).toSet().map((species) {
                             return DropdownMenuItem<String>(
-                              value: s.id,
-                              child: Text(s.name),
+                              value: species.toLowerCase(),
+                              child: Text(species[0].toUpperCase() + species.substring(1)),
                             );
                           }).toList(),
                         ),

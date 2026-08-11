@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
+import '../../state/app_state.dart';
+import '../../models/pet_disease.dart';
 
 class AdvisoryScreen extends StatefulWidget {
   const AdvisoryScreen({super.key});
@@ -12,18 +15,48 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
   int _currentStep = 0;
 
   // Selected symptoms Checklist
-  final Map<String, bool> _symptoms = {
-    'Fever / Very Warm Ears': false,
-    'Slight Coughing or Sneezing': false,
-    'Frequent Vomiting or Diarrhea': false,
-    'Severe Lethargy / Low Energy': false,
-    'Loss of Appetite / Refusing Water': false,
-    'Minor Skin Scratch or Redness': false,
-  };
+  final Map<String, bool> _symptoms = {};
 
   // Questionnaire responses
   String? _durationAnswer; // '<24 Hours', '24-48 Hours', '>48 Hours'
   String? _ageAnswer; // 'Puppy/Kitten (<6 months)', 'Adult'
+
+  List<String> _allAvailableSymptoms = [];
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final state = Provider.of<AppState>(context);
+      if (!state.isDatasetLoading) {
+        final Set<String> uniqueSymptoms = {};
+        for (var disease in state.diseases) {
+          for (var s in disease.symptoms) {
+            uniqueSymptoms.add(s);
+          }
+        }
+        
+        // Add fallback symptoms if dataset is empty
+        if (uniqueSymptoms.isEmpty) {
+          uniqueSymptoms.addAll([
+            'Fever / Very Warm Ears',
+            'Slight Coughing or Sneezing',
+            'Frequent Vomiting or Diarrhea',
+            'Severe Lethargy / Low Energy',
+            'Loss of Appetite / Refusing Water',
+            'Minor Skin Scratch or Redness'
+          ]);
+        }
+
+        _allAvailableSymptoms = uniqueSymptoms.toList()..sort();
+        for (var s in _allAvailableSymptoms) {
+          _symptoms[s] = false;
+        }
+        _initialized = true;
+      }
+    }
+  }
 
   void _reset() {
     setState(() {
@@ -34,112 +67,111 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
     });
   }
 
-  // Simple offline rule-based reasoning engine
-  AdvisoryResult _evaluateSymptoms() {
-    final hasVomiting = _symptoms['Frequent Vomiting or Diarrhea'] ?? false;
-    final hasLethargy = _symptoms['Severe Lethargy / Low Energy'] ?? false;
-    final hasAppetiteLoss =
-        _symptoms['Loss of Appetite / Refusing Water'] ?? false;
-    final hasFever = _symptoms['Fever / Very Warm Ears'] ?? false;
-    final hasCough = _symptoms['Slight Coughing or Sneezing'] ?? false;
-    final hasScratch = _symptoms['Minor Skin Scratch or Redness'] ?? false;
+  // Rule-based reasoning engine using Dataset
+  AdvisoryResult _evaluateSymptoms(List<PetDisease> allDiseases) {
+    final selectedSymptoms = _symptoms.entries.where((e) => e.value).map((e) => e.key).toList();
+    
+    if (selectedSymptoms.isEmpty) {
+      return AdvisoryResult(
+        level: SeverityLevel.homecare,
+        title: 'No Symptoms Selected',
+        guideline: 'Please select symptoms to get relevant information.',
+        actions: ['Monitor your pet.'],
+        associatedConditions: [],
+      );
+    }
+
+    // Match conditions based on selected symptoms
+    final List<PetDisease> matchedConditions = [];
+    for (var disease in allDiseases) {
+      bool matches = false;
+      for (var s in selectedSymptoms) {
+        if (disease.symptoms.contains(s)) {
+          matches = true;
+          break;
+        }
+      }
+      if (matches) matchedConditions.add(disease);
+    }
+
+    // Evaluate severity based on matched conditions and context
+    SeverityLevel overallSeverity = SeverityLevel.homecare;
+    for (var disease in matchedConditions) {
+      if (disease.severity == 'high') {
+        overallSeverity = SeverityLevel.urgent;
+        break;
+      } else if (disease.severity == 'moderate' && overallSeverity != SeverityLevel.urgent) {
+        overallSeverity = SeverityLevel.caution;
+      }
+    }
 
     final isLongDuration = _durationAnswer == '>48 Hours';
     final isYoungPet = _ageAnswer == 'Puppy/Kitten (<6 months)';
 
-    // Rule 1: Emergency Red Flag Combined symptoms
-    if (hasVomiting && hasLethargy) {
-      return AdvisoryResult(
-        level: SeverityLevel.urgent,
-        title: 'Urgent Veterinary Attention Required',
-        guideline:
-            'Vomiting combined with severe lethargy is a red-flag condition representing possible dehydration, obstruction, or systemic infection. Do not wait for symptoms to pass.',
-        actions: [
-          'Call your local veterinary hospital immediately.',
-          'Do not offer heavy food; keep small amounts of fresh water close.',
-          'Keep your pet warm and calm during transport.',
-        ],
-      );
+    if (isLongDuration || isYoungPet) {
+      if (overallSeverity == SeverityLevel.homecare) overallSeverity = SeverityLevel.caution;
+      else if (overallSeverity == SeverityLevel.caution) overallSeverity = SeverityLevel.urgent;
     }
 
-    // Rule 2: Vulnerable age check
-    if (isYoungPet && (hasVomiting || hasLethargy || hasAppetiteLoss)) {
-      return AdvisoryResult(
-        level: SeverityLevel.urgent,
-        title: 'Urgent Checkup for Young Pet',
-        guideline:
-            'Puppies and kittens under 6 months have low safety reserves. Dehydration or loss of glucose from not eating can become critical within hours.',
-        actions: [
-          'Contact your veterinarian or emergency clinic for consultation.',
-          'Keep your pet dry and warm.',
-          'Monitor gums: they should be moist and pink, not dry or pale.',
-        ],
-      );
-    }
+    // Construct response
+    String title = '';
+    String guideline = '';
+    List<String> actions = [];
 
-    // Rule 3: Prolonged general symptoms
-    if (isLongDuration && (hasFever || hasCough || hasAppetiteLoss)) {
-      return AdvisoryResult(
-        level: SeverityLevel.caution,
-        title: 'Veterinary Checkup Recommended',
-        guideline:
-            'General symptoms lasting for more than 48 hours require physical inspection. Safe self-recovery is unlikely without diagnostic assistance.',
-        actions: [
-          'Book an appointment with your vet within the next 24 hours.',
-          'Ensure your pet has quiet, comfortable isolation space.',
-          'Keep details of when they last ate or passed urine/stool.',
-        ],
-      );
-    }
-
-    // Rule 4: Scratch home care guidelines
-    if (hasScratch && !hasVomiting && !hasLethargy) {
-      return AdvisoryResult(
-        level: SeverityLevel.homecare,
-        title: 'Home Care for Minor Scratches',
-        guideline:
-            'A minor scratch or superficial redness with normal appetite and energy can usually be monitored and treated at home.',
-        actions: [
-          'Clean the area gently using sterile saline or diluted pet-safe soap.',
-          'Apply an e-collar (cone) to prevent your pet from licking the wound.',
-          'Keep dry and inspect twice daily for signs of swelling or pus.',
-        ],
-      );
-    }
-
-    // Rule 5: Slight cold / respiratory
-    if (hasCough && !hasVomiting) {
-      return AdvisoryResult(
-        level: SeverityLevel.homecare,
-        title: 'Mild Respiratory Comfort',
-        guideline:
-            'Slight coughing or sneezing with normal energy could represent mild kennel cough or seasonal dust allergy.',
-        actions: [
-          'Keep the pet comfortable, warm, and away from dry draft currents.',
-          'Isolate from other household pets to prevent contagions.',
-          'If coughing becomes deep/honking, consult your vet.',
-        ],
-      );
-    }
-
-    // Default Case
-    return AdvisoryResult(
-      level: SeverityLevel.caution,
-      title: 'General Monitoring Suggested',
-      guideline:
-          'Your pet has registered mild symptoms. While not showing emergency signals, monitoring and rest are advised.',
-      actions: [
+    if (overallSeverity == SeverityLevel.urgent) {
+      title = 'Urgent Veterinary Attention Required';
+      guideline = 'These symptoms may be associated with several conditions, some of which are potentially severe (e.g., ${matchedConditions.take(2).map((e) => e.diseaseName).join(', ')}). A veterinarian should evaluate your pet for an accurate diagnosis.';
+      actions = [
+        'Call your local veterinary hospital immediately.',
+        'Do not wait for symptoms to pass.',
+        'Keep your pet warm and calm during transport.',
+      ];
+    } else if (overallSeverity == SeverityLevel.caution) {
+      title = 'Veterinary Checkup Recommended';
+      guideline = 'These symptoms may be associated with several conditions. A veterinarian should evaluate your pet for an accurate diagnosis.';
+      actions = [
+        'Book an appointment with your vet within the next 24-48 hours.',
+        'Ensure your pet has quiet, comfortable isolation space.',
+        'Track symptoms closely and call vet if things decline.',
+      ];
+    } else {
+      title = 'General Monitoring Suggested';
+      guideline = 'Your pet has registered mild symptoms. While not showing immediate emergency signals, monitoring is advised. A veterinarian should evaluate your pet if symptoms worsen or persist.';
+      actions = [
         'Place a bowl of clean water nearby and monitor their consumption.',
-        'Refrain from feeding table scraps or switching dog/cat food today.',
-        'Track symptoms for the next 24-48 hours. Call vet if things decline.',
-      ],
+        'Ensure they rest.',
+        'If symptoms persist beyond 24-48 hours, contact a vet.',
+      ];
+    }
+
+    // Add specific warning signs from conditions if available
+    for (var disease in matchedConditions) {
+      if (disease.whenToSeeVet.isNotEmpty && !actions.contains(disease.whenToSeeVet)) {
+        actions.add('Warning sign: ${disease.whenToSeeVet}');
+      }
+    }
+
+    return AdvisoryResult(
+      level: overallSeverity,
+      title: title,
+      guideline: guideline,
+      actions: actions.take(6).toList(), // Limit to 6 actions for readability
+      associatedConditions: matchedConditions,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = Provider.of<AppState>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    if (state.isDatasetLoading || !_initialized) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Symptom Advisor')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -170,7 +202,7 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'DISCLAIMER: This diagnostic wizard is a static, rule-based decision tree for informational purposes. It is NOT AI and does NOT replace a veterinary diagnostic checkup. Dial emergency vets if distressed.',
+                    'DISCLAIMER: This diagnostic wizard is a static, rule-based tool for informational purposes. It is NOT AI and does NOT replace a veterinary diagnostic checkup. Dial emergency vets if distressed.',
                     style: TextStyle(
                       fontSize: 11,
                       color: isDark
@@ -234,7 +266,7 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: _buildWizardStep(theme, isDark),
+              child: _buildWizardStep(theme, isDark, state.diseases),
             ),
           ),
         ],
@@ -242,14 +274,14 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
     );
   }
 
-  Widget _buildWizardStep(ThemeData theme, bool isDark) {
+  Widget _buildWizardStep(ThemeData theme, bool isDark, List<PetDisease> allDiseases) {
     switch (_currentStep) {
       case 0:
         return _buildSymptomChecklist(isDark);
       case 1:
         return _buildQuestionnaire(isDark);
       case 2:
-        return _buildGuidelineReport(theme, isDark);
+        return _buildGuidelineReport(theme, isDark, allDiseases);
       default:
         return const SizedBox();
     }
@@ -270,7 +302,7 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
           style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
         ),
         const SizedBox(height: 20),
-        ..._symptoms.keys.map((symptom) {
+        ..._allAvailableSymptoms.map((symptom) {
           final isSelected = _symptoms[symptom] ?? false;
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -303,7 +335,6 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: () {
-            // Validate at least one symptom selected is nice, but empty is allowed (general advice)
             setState(() {
               _currentStep = 1;
             });
@@ -408,8 +439,8 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
   }
 
   // --- STEP 3: RESULTS SUMMARY REPORT ---
-  Widget _buildGuidelineReport(ThemeData theme, bool isDark) {
-    final result = _evaluateSymptoms();
+  Widget _buildGuidelineReport(ThemeData theme, bool isDark, List<PetDisease> allDiseases) {
+    final result = _evaluateSymptoms(allDiseases);
 
     // Choose styling color based on severity
     final Color severityColor = result.level == SeverityLevel.urgent
@@ -492,6 +523,40 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
         ),
         const SizedBox(height: 24),
 
+        // Associated Conditions List (Educational)
+        if (result.associatedConditions.isNotEmpty) ...[
+          const Text(
+            'Possible Associated Conditions',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 10),
+          ...result.associatedConditions.map((condition) {
+            return Card(
+              child: ExpansionTile(
+                title: Text(condition.diseaseName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(condition.description, style: const TextStyle(height: 1.4)),
+                        const SizedBox(height: 12),
+                        const Text('Possible Causes:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(condition.possibleCauses.join(', ')),
+                        const SizedBox(height: 12),
+                        const Text('Prevention:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(condition.prevention.join(', ')),
+                      ],
+                    ),
+                  )
+                ]
+              )
+            );
+          }),
+          const SizedBox(height: 24),
+        ],
+
         // Action Steps Items
         const Text(
           'Suggested Action Plan',
@@ -553,11 +618,13 @@ class AdvisoryResult {
   final String title;
   final String guideline;
   final List<String> actions;
+  final List<PetDisease> associatedConditions;
 
   AdvisoryResult({
     required this.level,
     required this.title,
     required this.guideline,
     required this.actions,
+    required this.associatedConditions,
   });
 }

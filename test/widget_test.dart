@@ -19,6 +19,9 @@ void main() {
         child: const PawCareApp(),
       ),
     );
+    
+    // Wait for AppState to initialize and fake network calls to finish
+    await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
     // Verify that our onboarding screen Skip button is shown.

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../theme/app_theme.dart';
-import '../../state/app_state.dart';
-import '../../models/encyclopedia.dart';
+import '../../../theme/app_theme.dart';
+import '../../../state/app_state.dart';
+import '../../../models/encyclopedia.dart';
 
 class EncyclopediaScreen extends StatefulWidget {
   const EncyclopediaScreen({super.key});

@@ -48,7 +48,7 @@ class Species {
   });
 
   factory Species.fromMap(Map<String, dynamic> map) {
-    var commonFoods = map['commonFoods'] as Map<String, dynamic>? ?? {};
+    var commonFoods = map['commonFoods'] != null ? Map<String, dynamic>.from(map['commonFoods'] as Map) : <String, dynamic>{};
     return Species(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
@@ -56,12 +56,12 @@ class Species {
       unsafeFoods: List<String>.from(commonFoods['unsafe'] ?? []),
       breeds:
           (map['breeds'] as List<dynamic>?)
-              ?.map((b) => Breed.fromMap(b as Map<String, dynamic>))
+              ?.map((b) => Breed.fromMap(Map<String, dynamic>.from(b as Map)))
               .toList() ??
           [],
       recommendedVaccines:
           (map['vaccinations'] as List<dynamic>?)
-              ?.map((v) => VaccineTemplate.fromMap(v as Map<String, dynamic>))
+              ?.map((v) => VaccineTemplate.fromMap(Map<String, dynamic>.from(v as Map)))
               .toList() ??
           [],
     );

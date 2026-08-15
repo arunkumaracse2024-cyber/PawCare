@@ -6,7 +6,14 @@ import '../models/reminder.dart';
 import '../models/behaviour_log.dart';
 import '../models/health_record.dart';
 import '../models/encyclopedia.dart';
+import '../models/user_profile.dart';
+import '../models/appointment.dart';
+import '../models/vet_profile.dart';
+import '../models/shop_profile.dart';
+import '../models/care_note.dart';
+import '../models/time_slot.dart';
 import '../services/firebase_service.dart';
+import '../services/todo_merge_engine.dart';
 
 class AppState extends ChangeNotifier {
   final FirebaseService _db = FirebaseService();
@@ -18,7 +25,19 @@ class AppState extends ChangeNotifier {
   List<BehaviourLog> _behaviourLogs = [];
   List<HealthRecord> _healthRecords = [];
 
+  // Connect Role Specifics
+  UserProfile? _currentUser;
+  VetProfile? _currentVetProfile;
+  ShopProfile? _currentShopProfile;
+  List<Appointment> _appointments = [];
+  List<TimeSlot> _timeSlots = [];
+  List<VetProfile> _allVets = [];
+  List<CareNote> _careNotes = [];
+  List<MergedTodoItem> _mergedTodoFeed = [];
+  List<Pet> _shopPets = [];
+
   bool _isLoading = false;
+  bool _isInitializing = true;
   bool _isDarkMode = false;
 
   // Getters
@@ -29,21 +48,41 @@ class AppState extends ChangeNotifier {
   List<BehaviourLog> get behaviourLogs => _behaviourLogs;
   List<HealthRecord> get healthRecords => _healthRecords;
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
   bool get isDarkMode => _isDarkMode;
-  String? get currentUserEmail => _db.currentUserEmail;
-  bool get isAuthenticated => _db.isAuthenticated;
 
-  // Constructor
+  UserProfile? get currentUser => _currentUser;
+  VetProfile? get currentVetProfile => _currentVetProfile;
+  ShopProfile? get currentShopProfile => _currentShopProfile;
+  List<Appointment> get appointments => _appointments;
+  List<TimeSlot> get timeSlots => _timeSlots;
+  List<VetProfile> get allVets => _allVets;
+  List<CareNote> get careNotes => _careNotes;
+  List<MergedTodoItem> get mergedTodoFeed => _mergedTodoFeed;
+  List<Pet> get shopPets => _shopPets;
+
+  String? get currentUserEmail => _currentUser?.email;
+  bool get isAuthenticated => _currentUser != null;
+
   AppState() {
     _initApp();
   }
 
   Future<void> _initApp() async {
     _setLoading(true);
+    await _db.init();
     await loadEncyclopedia();
     if (_db.isAuthenticated) {
-      await refreshState();
+      try {
+        final uid = _db.currentUid!;
+        _currentUser = await _db.getUserProfile(uid);
+        await refreshState();
+      } catch (e) {
+        debugPrint('[AppState] Error restoring auth session: $e');
+        await logout();
+      }
     }
+    _isInitializing = false;
     _setLoading(false);
   }
 
@@ -61,17 +100,13 @@ class AppState extends ChangeNotifier {
   // --- ENCYCLOPEDIA LOAD ---
   Future<void> loadEncyclopedia() async {
     try {
-      final jsonStr = await rootBundle.loadString(
-        'assets/data/pet_encyclopedia.json',
-      );
+      final jsonStr = await rootBundle.loadString('assets/data/pet_encyclopedia.json');
       final Map<String, dynamic> data = json.decode(jsonStr);
       final List<dynamic> list = data['species'] ?? [];
       _speciesList = list
-          .map((s) => Species.fromMap(s as Map<String, dynamic>))
+          .map((s) => Species.fromMap(Map<String, dynamic>.from(s as Map)))
           .toList();
-      debugPrint(
-        '[AppState] Loaded ${_speciesList.length} species from encyclopedia.',
-      );
+      debugPrint('[AppState] Loaded ${_speciesList.length} species from encyclopedia.');
     } catch (e) {
       debugPrint('[AppState] Error loading encyclopedia: $e');
     }
@@ -81,17 +116,17 @@ class AppState extends ChangeNotifier {
   Future<void> login(String email, String password) async {
     _setLoading(true);
     try {
-      await _db.login(email, password);
+      _currentUser = await _db.login(email, password);
       await refreshState();
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<void> register(String email, String password) async {
+  Future<void> register(String name, String email, String password, String role) async {
     _setLoading(true);
     try {
-      await _db.register(email, password);
+      _currentUser = await _db.register(name, email, password, role);
       await refreshState();
     } finally {
       _setLoading(false);
@@ -102,32 +137,91 @@ class AppState extends ChangeNotifier {
     _setLoading(true);
     try {
       await _db.logout();
+      _currentUser = null;
+      _currentVetProfile = null;
+      _currentShopProfile = null;
       _pets.clear();
       _selectedPet = null;
       _reminders.clear();
       _behaviourLogs.clear();
       _healthRecords.clear();
+      _appointments.clear();
+      _timeSlots.clear();
+      _allVets.clear();
+      _careNotes.clear();
+      _mergedTodoFeed.clear();
+      _shopPets.clear();
     } finally {
       _setLoading(false);
     }
   }
 
+  Future<void> resetPassword(String email) async {
+    await _db.resetPassword(email);
+  }
+
+  Future<void> completeOnboarding() async {
+    if (_currentUser == null) return;
+    _currentUser = _currentUser!.copyWith(hasCompletedOnboarding: true);
+    await _db.saveUserProfile(_currentUser!);
+    notifyListeners();
+  }
+
   // --- STATE REFRESH / SYNC ---
   Future<void> refreshState() async {
-    _pets = await _db.fetchPets();
-    if (_pets.isNotEmpty) {
-      // Retain selection if existing pet is still there, else select first
-      if (_selectedPet == null || !_pets.any((p) => p.id == _selectedPet!.id)) {
-        _selectedPet = _pets.first;
+    if (_currentUser == null) return;
+
+    if (_currentUser!.role == 'owner') {
+      _pets = await _db.fetchPets(_currentUser!.uid);
+      _allVets = await _db.fetchVetProfiles();
+      _appointments = await _db.fetchAppointments(_currentUser!.uid);
+
+      if (_pets.isNotEmpty) {
+        if (_selectedPet == null || !_pets.any((p) => p.id == _selectedPet!.id)) {
+          _selectedPet = _pets.first;
+        } else {
+          _selectedPet = _pets.firstWhere((p) => p.id == _selectedPet!.id);
+        }
+        await refreshSubmodels();
       } else {
-        _selectedPet = _pets.firstWhere((p) => p.id == _selectedPet!.id);
+        _selectedPet = null;
+        _reminders.clear();
+        _behaviourLogs.clear();
+        _healthRecords.clear();
+        _careNotes.clear();
+        _mergedTodoFeed.clear();
       }
-      await refreshSubmodels();
-    } else {
-      _selectedPet = null;
-      _reminders.clear();
-      _behaviourLogs.clear();
-      _healthRecords.clear();
+    } else if (_currentUser!.role == 'shop') {
+      try {
+        _currentShopProfile = await _db.getShopProfile(_currentUser!.uid);
+      } catch (e) {
+        _currentShopProfile = ShopProfile(
+          uid: _currentUser!.uid,
+          shopName: '${_currentUser!.name} Shop',
+          address: 'Update Address in Settings',
+          partnerVetIds: [],
+        );
+        await _db.saveShopProfile(_currentShopProfile!);
+      }
+      _shopPets = await _db.fetchShopPets(_currentUser!.uid);
+      _allVets = await _db.fetchVetProfiles();
+    } else if (_currentUser!.role == 'vet') {
+      try {
+        _currentVetProfile = await _db.getVetProfile(_currentUser!.uid);
+      } catch (e) {
+        _currentVetProfile = VetProfile(
+          uid: _currentUser!.uid,
+          clinicName: '${_currentUser!.name} Clinic',
+          address: 'Update Address in Profile',
+          specialization: 'General Veterinary',
+          workingHours: {'Mon-Fri': '09:00 - 17:00'},
+          isVerified: false,
+          partnerShopIds: [],
+        );
+        await _db.saveVetProfile(_currentVetProfile!);
+      }
+      _appointments = await _db.fetchVetAppointments(_currentUser!.uid);
+      _timeSlots = await _db.fetchTimeSlots(_currentUser!.uid);
     }
     notifyListeners();
   }
@@ -137,6 +231,59 @@ class AppState extends ChangeNotifier {
       _reminders = await _db.fetchReminders(_selectedPet!.id);
       _behaviourLogs = await _db.fetchBehaviourLogs(_selectedPet!.id);
       _healthRecords = await _db.fetchHealthRecords(_selectedPet!.id);
+      _careNotes = await _db.fetchCareNotes(_selectedPet!.id);
+
+      final List<CareNote> standardCareNotes = [];
+      final speciesMatch = _speciesList.firstWhere(
+        (s) => s.id == _selectedPet!.species.toLowerCase(),
+        orElse: () => _speciesList.first,
+      );
+
+      final timelineMilestones = [
+        {'category': 'feeding', 'title': 'Establish feeding schedule', 'desc': 'Set a strict feeding schedule for regular digestion.'},
+        {'category': 'grooming', 'title': 'Brush coat', 'desc': 'Regular grooming prevents mats and maintains healthy skin.'},
+        {'category': 'checkup', 'title': 'First vet clinic visit', 'desc': 'Schedule first full veterinary exam.'},
+        {'category': 'medicine', 'title': 'Deworming treatment', 'desc': 'Administer recommended deworming treatment.'},
+      ];
+
+      for (int i = 0; i < timelineMilestones.length; i++) {
+        final m = timelineMilestones[i];
+        standardCareNotes.add(CareNote(
+          id: '${_selectedPet!.id}_std_${m['category']}',
+          petId: _selectedPet!.id,
+          source: 'breedStandard',
+          category: m['category']!,
+          title: m['title']!,
+          description: m['desc']!,
+          date: DateTime.now().subtract(const Duration(days: 5)),
+          sourceLabel: 'Standard care',
+          isResolved: _selectedPet!.checklist.any((item) => item.category.toLowerCase().contains(m['category']!) && item.isDone),
+        ));
+      }
+
+      for (int i = 0; i < speciesMatch.recommendedVaccines.length; i++) {
+        final v = speciesMatch.recommendedVaccines[i];
+        standardCareNotes.add(CareNote(
+          id: '${_selectedPet!.id}_std_vax_$i',
+          petId: _selectedPet!.id,
+          source: 'breedStandard',
+          category: 'vaccination',
+          title: v.name,
+          description: 'Suggested age: ${v.suggestedAge}',
+          date: DateTime.now().subtract(const Duration(days: 5)),
+          sourceLabel: 'Standard care',
+          isResolved: _reminders.any((rem) => rem.type.toLowerCase() == 'vaccine' && rem.title == v.name && rem.isDone),
+        ));
+      }
+
+      final shopCareNotes = _selectedPet!.shopNotes;
+      final vetCareNotes = _careNotes.where((note) => note.source == 'vet').toList();
+
+      _mergedTodoFeed = TodoMergeEngine.mergeTodos(
+        breedStandardItems: standardCareNotes,
+        shopNotes: shopCareNotes,
+        vetInstructions: vetCareNotes,
+      );
     }
   }
 
@@ -160,44 +307,13 @@ class AppState extends ChangeNotifier {
     try {
       final petId = 'pet_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Auto-generate milestone checklist based on species
       final checklist = [
-        ChecklistItem(
-          id: '${petId}_chk1',
-          title: 'Prepare room and bedding',
-          category: 'Day 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk2',
-          title: 'Buy high quality specialized food',
-          category: 'Day 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk3',
-          title: 'Install tags and microchip',
-          category: 'Week 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk4',
-          title: 'Establish veterinary contact',
-          category: 'Week 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk5',
-          title: 'Introduce leash and collar routines',
-          category: 'Week 1',
-          isDone: false,
-        ),
-        ChecklistItem(
-          id: '${petId}_chk6',
-          title: 'Start initial social play training',
-          category: 'Month 1',
-          isDone: false,
-        ),
+        ChecklistItem(id: '${petId}_chk1', title: 'Prepare room and bedding', category: 'Day 1', isDone: false),
+        ChecklistItem(id: '${petId}_chk2', title: 'Buy high quality specialized food', category: 'Day 1', isDone: false),
+        ChecklistItem(id: '${petId}_chk3', title: 'Install tags and microchip', category: 'Week 1', isDone: false),
+        ChecklistItem(id: '${petId}_chk4', title: 'Establish veterinary contact', category: 'Week 1', isDone: false),
+        ChecklistItem(id: '${petId}_chk5', title: 'Introduce leash and collar routines', category: 'Week 1', isDone: false),
+        ChecklistItem(id: '${petId}_chk6', title: 'Start initial social play training', category: 'Month 1', isDone: false),
       ];
 
       final newPet = Pet(
@@ -209,11 +325,13 @@ class AppState extends ChangeNotifier {
         weight: weight,
         photoPath: photoPath,
         checklist: checklist,
+        ownerUid: _currentUser!.uid,
+        isLinked: false,
+        shopNotes: [],
       );
 
       await _db.savePet(newPet);
 
-      // Programmatically schedule reminder recommendations from species checklist if available
       final speciesMatch = _speciesList.firstWhere(
         (s) => s.id == species.toLowerCase(),
         orElse: () => _speciesList.first,
@@ -225,9 +343,7 @@ class AppState extends ChangeNotifier {
           petId: petId,
           title: v.name,
           type: 'Vaccine',
-          dateTime: DateTime.now().add(
-            Duration(days: (i + 1) * 30),
-          ), // spaced reminders
+          dateTime: DateTime.now().add(Duration(days: (i + 1) * 30)),
           repeatOption: 'None',
           isDone: false,
         );
@@ -235,7 +351,6 @@ class AppState extends ChangeNotifier {
       }
 
       await refreshState();
-      // Set the newly created pet as selected
       final newPetIndex = _pets.indexWhere((p) => p.id == petId);
       if (newPetIndex != -1) {
         _selectedPet = _pets[newPetIndex];
@@ -353,7 +468,17 @@ class AppState extends ChangeNotifier {
         notes: notes,
       );
       await _db.saveBehaviourLog(log);
-      await refreshSubmodels(); // updates trend list
+      await refreshSubmodels();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteBehaviourLog(String logId) async {
+    _setLoading(true);
+    try {
+      await _db.deleteBehaviourLog(logId);
+      await refreshSubmodels();
     } finally {
       _setLoading(false);
     }
@@ -396,11 +521,280 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteBehaviourLog(String logId) async {
+  // --- PET LINKING (SHOP TO OWNER) ---
+  Future<bool> linkPet(String linkCode) async {
+    if (_currentUser == null || _currentUser!.role != 'owner') return false;
     _setLoading(true);
     try {
-      await _db.deleteBehaviourLog(logId);
-      await refreshSubmodels();
+      final targetPet = await _db.findPetByLinkCode(linkCode);
+      if (targetPet != null) {
+        await _db.acceptPetLink(targetPet.id, _currentUser!.uid);
+        await refreshState();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[AppState] Error linking pet: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // --- VET CLINIC PROFILE ---
+  Future<void> updateVetProfile({
+    required String clinicName,
+    required String address,
+    required String specialization,
+    required Map<String, dynamic> workingHours,
+    required bool isVerified,
+  }) async {
+    if (_currentVetProfile == null) return;
+    _setLoading(true);
+    try {
+      _currentVetProfile = _currentVetProfile!.copyWith(
+        clinicName: clinicName,
+        address: address,
+        specialization: specialization,
+        workingHours: workingHours,
+        isVerified: isVerified,
+      );
+      await _db.saveVetProfile(_currentVetProfile!);
+      await refreshState();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // --- APPOINTMENTS & SLOTS ---
+  Future<void> addTimeSlot(DateTime date, String startTime, String endTime) async {
+    if (_currentUser == null || _currentUser!.role != 'vet') return;
+    _setLoading(true);
+    try {
+      final id = 'slot_${DateTime.now().millisecondsSinceEpoch}';
+      final slot = TimeSlot(
+        id: id,
+        vetUid: _currentUser!.uid,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        isBooked: false,
+      );
+      await _db.saveTimeSlot(slot);
+      await refreshState();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteTimeSlot(String slotId) async {
+    _setLoading(true);
+    try {
+      await _db.deleteTimeSlot(slotId);
+      await refreshState();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> bookAppointment({
+    required String petId,
+    required String vetUid,
+    required String slotId,
+    required DateTime dateTime,
+    required String notes,
+  }) async {
+    if (_currentUser == null || _currentUser!.role != 'owner') return;
+    _setLoading(true);
+    try {
+      final id = 'appt_${DateTime.now().millisecondsSinceEpoch}';
+      final appt = Appointment(
+        id: id,
+        petId: petId,
+        ownerUid: _currentUser!.uid,
+        vetUid: vetUid,
+        dateTime: dateTime,
+        slotId: slotId,
+        status: 'pending',
+        notes: notes,
+        createdAt: DateTime.now(),
+      );
+
+      await _db.saveAppointment(appt);
+      await _db.updateTimeSlotBooking(slotId, true);
+      await refreshState();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateAppointmentStatus(String appointmentId, String status, {String? postVisitNotes, String? category, String? instructionTitle}) async {
+    _setLoading(true);
+    try {
+      final appt = await _db.getAppointment(appointmentId);
+      if (appt == null) return;
+
+      final updatedAppt = appt.copyWith(status: status);
+      await _db.saveAppointment(updatedAppt);
+
+      if (status == 'completed' && postVisitNotes != null && postVisitNotes.isNotEmpty) {
+        final finalCategory = category ?? 'checkup';
+        final finalTitle = instructionTitle ?? 'Post-visit Instructions';
+
+        final noteId = 'cn_${DateTime.now().millisecondsSinceEpoch}';
+        final vetName = _currentUser?.name ?? "Dr. Veterinarian";
+        final careNote = CareNote(
+          id: noteId,
+          petId: appt.petId,
+          source: 'vet',
+          category: finalCategory,
+          title: finalTitle,
+          description: postVisitNotes,
+          date: DateTime.now(),
+          sourceLabel: "From Dr. $vetName's visit",
+          appointmentId: appointmentId,
+          isResolved: false,
+        );
+        await _db.saveCareNote(careNote);
+
+        final recordId = 'hrec_${DateTime.now().millisecondsSinceEpoch}';
+        final record = HealthRecord(
+          id: recordId,
+          petId: appt.petId,
+          title: 'Vet Visit Note: $finalTitle',
+          type: 'Medical Report',
+          date: DateTime.now(),
+          details: 'Doctor Notes:\n$postVisitNotes\n\nPrescription category: $finalCategory',
+        );
+        await _db.saveHealthRecord(record);
+      }
+
+      if (status == 'rejected' || status == 'cancelled') {
+        await _db.updateTimeSlotBooking(appt.slotId, false);
+      }
+
+      await refreshState();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // --- SHOP MANAGEMENT ---
+  Future<void> addCatalogPet({
+    required String name,
+    required String species,
+    required String breed,
+    required double age,
+    required double weight,
+    required String healthNotes,
+  }) async {
+    if (_currentUser == null || _currentUser!.role != 'shop') return;
+    _setLoading(true);
+    try {
+      final petId = 'shop_pet_${DateTime.now().millisecondsSinceEpoch}';
+      final newPet = Pet(
+        id: petId,
+        name: name,
+        species: species,
+        breed: breed,
+        age: age,
+        weight: weight,
+        photoPath: '',
+        checklist: [],
+        ownerUid: '',
+        shopId: _currentUser!.uid,
+        isLinked: false,
+        shopNotes: [
+          CareNote(
+            id: '${petId}_initial_health',
+            petId: petId,
+            source: 'shop',
+            category: 'checkup',
+            title: 'Initial Health Check',
+            description: healthNotes.isNotEmpty ? healthNotes : 'Healthy at listing.',
+            date: DateTime.now(),
+            sourceLabel: 'From your shop',
+            isResolved: true,
+          )
+        ],
+      );
+      await _db.savePet(newPet);
+      await refreshState();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<String> recordSaleAndGenerateCode({
+    required String petId,
+    required String saleVaccinationNote,
+    required String saleFeedingNote,
+  }) async {
+    if (_currentUser == null || _currentUser!.role != 'shop') return '';
+    _setLoading(true);
+    try {
+      final petIndex = _shopPets.indexWhere((p) => p.id == petId);
+      if (petIndex == -1) return '';
+      final pet = _shopPets[petIndex];
+
+      final linkCode = 'CODE-${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toInt()}';
+      final List<CareNote> saleNotes = [];
+
+      if (saleVaccinationNote.isNotEmpty) {
+        saleNotes.add(CareNote(
+          id: '${petId}_sale_vax',
+          petId: petId,
+          source: 'shop',
+          category: 'vaccination',
+          title: 'First Vaccination Note',
+          description: saleVaccinationNote,
+          date: DateTime.now(),
+          sourceLabel: 'From your shop',
+          isResolved: true,
+        ));
+      }
+
+      if (saleFeedingNote.isNotEmpty) {
+        saleNotes.add(CareNote(
+          id: '${petId}_sale_feed',
+          petId: petId,
+          source: 'shop',
+          category: 'feeding',
+          title: 'Transition Feeding Plan',
+          description: saleFeedingNote,
+          date: DateTime.now(),
+          sourceLabel: 'From your shop',
+          isResolved: false,
+        ));
+      }
+
+      final updatedPet = pet.copyWith(
+        linkCode: linkCode,
+        shopNotes: saleNotes,
+      );
+
+      await _db.savePet(updatedPet);
+      await refreshState();
+      return linkCode;
+    } catch (e) {
+      debugPrint('[AppState] Error generating sale link: $e');
+      return '';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // --- SHOP & VET PARTNERSHIP INVITES ---
+  Future<bool> invitePartnerVet(String vetEmail) async {
+    if (_currentUser == null || _currentUser!.role != 'shop') return false;
+    _setLoading(true);
+    try {
+      final success = await _db.invitePartnerVet(_currentUser!.uid, vetEmail);
+      await refreshState();
+      return success;
+    } catch (e) {
+      debugPrint('[AppState] Error partnering vet: $e');
+      return false;
     } finally {
       _setLoading(false);
     }

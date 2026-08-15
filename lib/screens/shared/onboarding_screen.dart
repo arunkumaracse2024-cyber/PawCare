@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
-import 'auth_screen.dart';
+import '../../state/app_state.dart';
+import '../owner/owner_dashboard_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -49,7 +51,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
-                onPressed: () => _navigateToAuth(),
+                onPressed: () => _finishOnboarding(),
                 child: Text(
                   'Skip',
                   style: TextStyle(
@@ -138,7 +140,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ElevatedButton(
                     onPressed: () {
                       if (_currentPage == _screens.length - 1) {
-                        _navigateToAuth();
+                        _finishOnboarding();
                       } else {
                         _pageController.nextPage(
                           duration: const Duration(milliseconds: 400),
@@ -161,10 +163,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  void _navigateToAuth() {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthScreen()));
+  Future<void> _finishOnboarding() async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    await appState.completeOnboarding();
+    
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
+      );
+    }
   }
 }
 

@@ -5,8 +5,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'theme/app_theme.dart';
 import 'state/app_state.dart';
 import 'services/notification_service.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/auth_screen.dart';
+import 'screens/shared/onboarding_screen.dart';
+import 'screens/owner/owner_dashboard_screen.dart';
+import 'screens/shop/shop_dashboard_screen.dart';
+import 'screens/vet/vet_dashboard_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,17 +41,27 @@ class PawCareApp extends StatelessWidget {
   }
 
   Widget _getHomeScreen(AppState state) {
-    if (state.isLoading) {
+    if (state.isInitializing) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Auth-Check state routing
-    if (state.currentUserEmail == null) {
-      // Return onboarding screen on first load
+    if (!state.isAuthenticated) {
+      return const AuthScreen();
+    }
+
+    final user = state.currentUser!;
+    if (!user.hasCompletedOnboarding && user.role == 'owner') {
       return const OnboardingScreen();
     }
 
-    return const DashboardScreen();
+    if (user.role == 'shop') {
+      return const ShopDashboardScreen();
+    } else if (user.role == 'vet') {
+      return const VetDashboardScreen();
+    } else {
+      return const OwnerDashboardScreen();
+    }
   }
 }
 

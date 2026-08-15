@@ -19,9 +19,19 @@ void main() {
         child: const PawCareApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    // Pump first frame
+    await tester.pump();
 
-    // Verify that our onboarding screen Skip button is shown.
-    expect(find.text('Skip'), findsOneWidget);
+    // Programmatically pump while the app is loading to avoid infinite progress indicator timeouts
+    final context = tester.element(find.byType(PawCareApp));
+    final AppState state = Provider.of<AppState>(context, listen: false);
+    while (state.isLoading) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    // Re-render once loading is complete
+    await tester.pump();
+
+    // Verify that our auth screen Log In button is shown.
+    expect(find.text('Log In'), findsWidgets);
   });
 }

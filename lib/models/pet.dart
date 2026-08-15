@@ -1,3 +1,5 @@
+import 'care_note.dart';
+
 class Pet {
   final String id;
   final String name;
@@ -7,6 +9,11 @@ class Pet {
   final double weight; // kg
   final String photoPath;
   final List<ChecklistItem> checklist;
+  final String ownerUid;
+  final String? shopId;
+  final String? linkCode;
+  final bool isLinked;
+  final List<CareNote> shopNotes;
 
   Pet({
     required this.id,
@@ -17,6 +24,11 @@ class Pet {
     required this.weight,
     required this.photoPath,
     required this.checklist,
+    required this.ownerUid,
+    this.shopId,
+    this.linkCode,
+    this.isLinked = false,
+    this.shopNotes = const [],
   });
 
   Pet copyWith({
@@ -28,6 +40,11 @@ class Pet {
     double? weight,
     String? photoPath,
     List<ChecklistItem>? checklist,
+    String? ownerUid,
+    String? shopId,
+    String? linkCode,
+    bool? isLinked,
+    List<CareNote>? shopNotes,
   }) {
     return Pet(
       id: id ?? this.id,
@@ -38,6 +55,11 @@ class Pet {
       weight: weight ?? this.weight,
       photoPath: photoPath ?? this.photoPath,
       checklist: checklist ?? this.checklist,
+      ownerUid: ownerUid ?? this.ownerUid,
+      shopId: shopId ?? this.shopId,
+      linkCode: linkCode ?? this.linkCode,
+      isLinked: isLinked ?? this.isLinked,
+      shopNotes: shopNotes ?? this.shopNotes,
     );
   }
 
@@ -51,6 +73,11 @@ class Pet {
       'weight': weight,
       'photoPath': photoPath,
       'checklist': checklist.map((item) => item.toMap()).toList(),
+      'ownerUid': ownerUid,
+      'shopId': shopId,
+      'linkCode': linkCode,
+      'isLinked': isLinked,
+      'shopNotes': shopNotes.map((note) => note.toMap()).toList(),
     };
   }
 
@@ -66,8 +93,17 @@ class Pet {
       checklist:
           (map['checklist'] as List<dynamic>?)
               ?.map(
-                (item) => ChecklistItem.fromMap(item as Map<String, dynamic>),
+                (item) => ChecklistItem.fromMap(Map<String, dynamic>.from(item as Map)),
               )
+              .toList() ??
+          [],
+      ownerUid: map['ownerUid'] ?? '',
+      shopId: map['shopId'],
+      linkCode: map['linkCode'],
+      isLinked: map['isLinked'] ?? false,
+      shopNotes:
+          (map['shopNotes'] as List<dynamic>?)
+              ?.map((n) => CareNote.fromMap(Map<String, dynamic>.from(n as Map)))
               .toList() ??
           [],
     );

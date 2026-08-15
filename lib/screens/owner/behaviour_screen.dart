@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../theme/app_theme.dart';
-import '../../state/app_state.dart';
-import '../../models/behaviour_log.dart';
+import '../../../theme/app_theme.dart';
+import '../../../state/app_state.dart';
+import '../../../models/behaviour_log.dart';
 
 class BehaviourScreen extends StatefulWidget {
   const BehaviourScreen({super.key});

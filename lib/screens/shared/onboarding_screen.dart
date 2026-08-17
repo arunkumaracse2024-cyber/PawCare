@@ -80,7 +80,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Container(
                           padding: const EdgeInsets.all(40),
                           decoration: BoxDecoration(
-                            color: item.color.withOpacity(0.12),
+                            color: item.color.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(item.icon, size: 100, color: item.color),
@@ -188,3 +188,6 @@ class OnboardingData {
     required this.color,
   });
 }
+
+
+

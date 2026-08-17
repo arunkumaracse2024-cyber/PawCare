@@ -88,7 +88,7 @@ class OwnerDashboardScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: AppTheme.orangePrimary.withOpacity(0.12),
+                color: AppTheme.orangePrimary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -181,7 +181,7 @@ class OwnerDashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // --- MERGED TODO CARE FEED HIGHLIGHT ---
+            // --- MERGED CARE FEED HIGHLIGHT ---
             _buildMergedTodoPreview(context, state, isDark),
             const SizedBox(height: 24),
 
@@ -228,7 +228,7 @@ class OwnerDashboardScreen extends StatelessWidget {
                   color: isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppTheme.orangePrimary.withOpacity(0.4),
+                    color: AppTheme.orangePrimary.withValues(alpha: 0.4),
                   ),
                 ),
                 child: const Icon(
@@ -255,7 +255,7 @@ class OwnerDashboardScreen extends StatelessWidget {
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.orangePrimary.withOpacity(0.15)
+                    ? AppTheme.orangePrimary.withValues(alpha: 0.15)
                     : (isDark ? const Color(0xFF2A2A2A) : Colors.white),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
@@ -268,7 +268,7 @@ class OwnerDashboardScreen extends StatelessWidget {
                     ? []
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -300,7 +300,7 @@ class OwnerDashboardScreen extends StatelessWidget {
                               ? (isDark ? Colors.white : AppTheme.orangeDeep)
                               : (isDark
                                   ? Colors.white70
-                                  : Colors.black.withOpacity(0.8)),
+                                  : Colors.black.withValues(alpha: 0.8)),
                         ),
                       ),
                       Text(
@@ -333,7 +333,7 @@ class OwnerDashboardScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 25,
-                  backgroundColor: AppTheme.orangePrimary.withOpacity(0.2),
+                  backgroundColor: AppTheme.orangePrimary.withValues(alpha: 0.2),
                   child: Icon(
                     pet.species.toLowerCase() == 'dog'
                         ? Icons.pets_rounded
@@ -571,7 +571,7 @@ class OwnerDashboardScreen extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: getSourceColor().withOpacity(0.12),
+                  backgroundColor: getSourceColor().withValues(alpha: 0.12),
                   child: Icon(
                     item.category.toLowerCase() == 'vaccination'
                         ? Icons.vaccines_rounded
@@ -595,7 +595,7 @@ class OwnerDashboardScreen extends StatelessWidget {
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: getSourceColor().withOpacity(0.12),
+                    color: getSourceColor().withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -690,8 +690,8 @@ class OwnerDashboardScreen extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: isOverdue
-              ? Colors.redAccent.withOpacity(0.12)
-              : AppTheme.tealSecondary.withOpacity(0.12),
+              ? Colors.redAccent.withValues(alpha: 0.12)
+              : AppTheme.tealSecondary.withValues(alpha: 0.12),
           child: Icon(
             typeIcon,
             color: isOverdue ? Colors.redAccent : AppTheme.tealSecondary,
@@ -825,7 +825,7 @@ class OwnerDashboardScreen extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: color.withOpacity(0.12),
+                backgroundColor: color.withValues(alpha: 0.12),
                 child: Icon(icon, color: color, size: 22),
               ),
               Text(
@@ -843,3 +843,4 @@ class OwnerDashboardScreen extends StatelessWidget {
     );
   }
 }
+

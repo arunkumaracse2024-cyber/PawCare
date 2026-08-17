@@ -1,0 +1,122 @@
+{
+    "diseases": [
+        {
+            "id": "d1",
+            "targetSpecies": "all",
+            "requiredSymptoms": [
+                "Frequent Vomiting or Diarrhea",
+                "Severe Lethargy / Low Energy"
+            ],
+            "anySymptoms": [],
+            "youngOnly": false,
+            "longDurationOnly": false,
+            "level": "urgent",
+            "title": "Urgent Veterinary Attention Required",
+            "guideline": "Vomiting combined with severe lethargy is a red-flag condition representing possible dehydration, obstruction, or systemic infection. Do not wait for symptoms to pass.",
+            "actions": [
+                "Call your local veterinary hospital immediately.",
+                "Do not offer heavy food; keep small amounts of fresh water close.",
+                "Keep your pet warm and calm during transport."
+            ]
+        },
+        {
+            "id": "d2",
+            "targetSpecies": "all",
+            "requiredSymptoms": [],
+            "anySymptoms": [
+                "Frequent Vomiting or Diarrhea",
+                "Severe Lethargy / Low Energy",
+                "Loss of Appetite / Refusing Water"
+            ],
+            "youngOnly": true,
+            "longDurationOnly": false,
+            "level": "urgent",
+            "title": "Urgent Checkup for Young Pet",
+            "guideline": "Puppies and kittens under 6 months have low safety reserves. Dehydration or loss of glucose from not eating can become critical within hours.",
+            "actions": [
+                "Contact your veterinarian or emergency clinic for consultation.",
+                "Keep your pet dry and warm.",
+                "Monitor gums: they should be moist and pink, not dry or pale."
+            ]
+        },
+        {
+            "id": "d3",
+            "targetSpecies": "all",
+            "requiredSymptoms": [],
+            "anySymptoms": [
+                "Fever / Very Warm Ears",
+                "Slight Coughing or Sneezing",
+                "Loss of Appetite / Refusing Water"
+            ],
+            "youngOnly": false,
+            "longDurationOnly": true,
+            "level": "caution",
+            "title": "Veterinary Checkup Recommended",
+            "guideline": "General symptoms lasting for more than 48 hours require physical inspection. Safe self-recovery is unlikely without diagnostic assistance.",
+            "actions": [
+                "Book an appointment with your vet within the next 24 hours.",
+                "Ensure your pet has quiet, comfortable isolation space.",
+                "Keep details of when they last ate or passed urine/stool."
+            ]
+        },
+        {
+            "id": "d4",
+            "targetSpecies": "all",
+            "requiredSymptoms": [
+                "Minor Skin Scratch or Redness"
+            ],
+            "anySymptoms": [],
+            "youngOnly": false,
+            "longDurationOnly": false,
+            "level": "homecare",
+            "title": "Home Care for Minor Scratches",
+            "guideline": "A minor scratch or superficial redness with normal appetite and energy can usually be monitored and treated at home.",
+            "actions": [
+                "Clean the area gently with lukewarm water and a pet-safe antiseptic.",
+                "Prevent licking or scratching by using an e-collar if necessary.",
+                "Monitor for signs of swelling or pus."
+            ]
+        },
+        {
+            "id": "d5",
+            "targetSpecies": "all",
+            "requiredSymptoms": [
+                "Slight Coughing or Sneezing"
+            ],
+            "anySymptoms": [],
+            "youngOnly": false,
+            "longDurationOnly": false,
+            "level": "homecare",
+            "title": "Mild Respiratory Comfort",
+            "guideline": "Slight coughing or sneezing with normal energy could represent mild kennel cough or seasonal dust allergy.",
+            "actions": [
+                "Ensure a dust-free and well-ventilated environment.",
+                "Monitor for worsening symptoms like discharge or lethargy.",
+                "Provide plenty of fresh water."
+            ]
+        },
+        {
+            "id": "d6",
+            "targetSpecies": "all",
+            "requiredSymptoms": [],
+            "anySymptoms": [
+                "Fever / Very Warm Ears",
+                "Slight Coughing or Sneezing",
+                "Frequent Vomiting or Diarrhea",
+                "Severe Lethargy / Low Energy",
+                "Loss of Appetite / Refusing Water",
+                "Minor Skin Scratch or Redness"
+            ],
+            "youngOnly": false,
+            "longDurationOnly": false,
+            "level": "caution",
+            "title": "General Monitoring Suggested",
+            "guideline": "Your pet has registered mild symptoms. While not showing emergency signals, monitoring and rest are advised.",
+            "actions": [
+                "Keep the pet calm and rested.",
+                "Ensure easy access to water.",
+                "Observe closely over the next 12-24 hours."
+            ]
+        }
+    ]
+}

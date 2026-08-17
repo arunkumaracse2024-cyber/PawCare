@@ -14,7 +14,6 @@ class VetDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
-    final theme = Theme.of(context);
 
     final incomingRequests = state.appointments.where((a) => a.status == 'pending').toList();
     final activeSlots = state.timeSlots.length;
@@ -241,7 +240,7 @@ class VetDashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               CircleAvatar(
-                backgroundColor: color.withOpacity(0.12),
+                backgroundColor: color.withValues(alpha: 0.12),
                 child: Icon(icon, color: color),
               ),
               Column(
@@ -265,3 +264,4 @@ class VetDashboardScreen extends StatelessWidget {
     );
   }
 }
+

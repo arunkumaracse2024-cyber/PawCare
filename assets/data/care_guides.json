@@ -1,0 +1,36 @@
+{
+    "care_tasks": [
+        {
+            "id": "c1",
+            "species": "dog",
+            "breedId": null,
+            "category": "grooming",
+            "title": "Brush coat",
+            "frequency": "weekly"
+        },
+        {
+            "id": "c2",
+            "species": "dog",
+            "breedId": null,
+            "category": "dental",
+            "title": "Brush teeth",
+            "frequency": "daily"
+        },
+        {
+            "id": "c3",
+            "species": "cat",
+            "breedId": "persian",
+            "category": "grooming",
+            "title": "Brush long coat thoroughly",
+            "frequency": "daily"
+        },
+        {
+            "id": "c4",
+            "species": "bird",
+            "breedId": null,
+            "category": "environment",
+            "title": "Clean cage base",
+            "frequency": "weekly"
+        }
+    ]
+}

@@ -154,7 +154,7 @@ class _PartnerVetsScreenState extends State<PartnerVetsScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: AppTheme.tealSecondary.withOpacity(0.12),
+                            backgroundColor: AppTheme.tealSecondary.withValues(alpha: 0.12),
                             child: const Icon(Icons.local_hospital_rounded, color: AppTheme.tealSecondary),
                           ),
                           title: Text(
@@ -173,3 +173,6 @@ class _PartnerVetsScreenState extends State<PartnerVetsScreen> {
     );
   }
 }
+
+
+

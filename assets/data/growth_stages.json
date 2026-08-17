@@ -1,0 +1,25 @@
+{
+    "growth_stages": [
+        {
+            "id": "g1",
+            "species": "dog",
+            "stageName": "Puppy",
+            "ageRange": "0-12 months",
+            "description": "Rapid growth, teething, and high energy."
+        },
+        {
+            "id": "g2",
+            "species": "dog",
+            "stageName": "Adult",
+            "ageRange": "1-7 years",
+            "description": "Maintenance phase, peak physical condition."
+        },
+        {
+            "id": "g3",
+            "species": "dog",
+            "stageName": "Senior",
+            "ageRange": "7+ years",
+            "description": "Slowing down, may need joint support."
+        }
+    ]
+}

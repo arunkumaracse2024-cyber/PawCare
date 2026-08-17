@@ -35,6 +35,7 @@ class _ManageSlotsScreenState extends State<ManageSlotsScreen> {
     final state = Provider.of<AppState>(context, listen: false);
     try {
       await state.addTimeSlot(_selectedDate, _startTime, _endTime);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Time slot added to availability calendar."),
@@ -42,6 +43,7 @@ class _ManageSlotsScreenState extends State<ManageSlotsScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error: $e"),
@@ -191,7 +193,7 @@ class _ManageSlotsScreenState extends State<ManageSlotsScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: slot.isBooked ? Colors.amber.withOpacity(0.12) : Colors.green.withOpacity(0.12),
+                            backgroundColor: slot.isBooked ? Colors.amber.withValues(alpha: 0.12) : Colors.green.withValues(alpha: 0.12),
                             child: Icon(
                               slot.isBooked ? Icons.lock_rounded : Icons.lock_open_rounded,
                               color: slot.isBooked ? Colors.amber : Colors.green,
@@ -220,3 +222,6 @@ class _ManageSlotsScreenState extends State<ManageSlotsScreen> {
     );
   }
 }
+
+
+

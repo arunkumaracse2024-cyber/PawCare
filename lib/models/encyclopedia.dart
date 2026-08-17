@@ -1,5 +1,6 @@
 class Breed {
   final String id;
+  final String species;
   final String name;
   final String temperament;
   final String lifespan;
@@ -9,6 +10,7 @@ class Breed {
 
   Breed({
     required this.id,
+    required this.species,
     required this.name,
     required this.temperament,
     required this.lifespan,
@@ -20,6 +22,7 @@ class Breed {
   factory Breed.fromMap(Map<String, dynamic> map) {
     return Breed(
       id: map['id'] ?? '',
+      species: map['species'] ?? 'all',
       name: map['name'] ?? '',
       temperament: map['temperament'] ?? '',
       lifespan: map['lifespan'] ?? '',
@@ -33,49 +36,37 @@ class Breed {
 class Species {
   final String id;
   final String name;
-  final List<String> safeFoods;
-  final List<String> unsafeFoods;
-  final List<Breed> breeds;
-  final List<VaccineTemplate> recommendedVaccines;
 
   Species({
     required this.id,
     required this.name,
-    required this.safeFoods,
-    required this.unsafeFoods,
-    required this.breeds,
-    required this.recommendedVaccines,
   });
 
   factory Species.fromMap(Map<String, dynamic> map) {
-    var commonFoods = map['commonFoods'] != null ? Map<String, dynamic>.from(map['commonFoods'] as Map) : <String, dynamic>{};
     return Species(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
-      safeFoods: List<String>.from(commonFoods['safe'] ?? []),
-      unsafeFoods: List<String>.from(commonFoods['unsafe'] ?? []),
-      breeds:
-          (map['breeds'] as List<dynamic>?)
-              ?.map((b) => Breed.fromMap(Map<String, dynamic>.from(b as Map)))
-              .toList() ??
-          [],
-      recommendedVaccines:
-          (map['vaccinations'] as List<dynamic>?)
-              ?.map((v) => VaccineTemplate.fromMap(Map<String, dynamic>.from(v as Map)))
-              .toList() ??
-          [],
     );
   }
 }
 
 class VaccineTemplate {
+  final String id;
+  final String species;
   final String name;
   final String suggestedAge;
 
-  VaccineTemplate({required this.name, required this.suggestedAge});
+  VaccineTemplate({
+    required this.id,
+    required this.species,
+    required this.name,
+    required this.suggestedAge,
+  });
 
   factory VaccineTemplate.fromMap(Map<String, dynamic> map) {
     return VaccineTemplate(
+      id: map['id'] ?? '',
+      species: map['species'] ?? 'all',
       name: map['name'] ?? '',
       suggestedAge: map['suggestedAge'] ?? '',
     );

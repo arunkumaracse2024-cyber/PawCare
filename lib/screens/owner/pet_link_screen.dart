@@ -115,7 +115,7 @@ class _PetLinkScreenState extends State<PetLinkScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppTheme.orangePrimary.withOpacity(0.12),
+                color: AppTheme.orangePrimary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -151,3 +151,6 @@ class _PetLinkScreenState extends State<PetLinkScreen> {
     );
   }
 }
+
+
+

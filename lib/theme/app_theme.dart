@@ -17,7 +17,7 @@ class AppTheme {
         primary: orangePrimary,
         secondary: tealSecondary,
         brightness: Brightness.light,
-      ).copyWith(background: bgLight),
+      ).copyWith(surface: bgLight),
       scaffoldBackgroundColor: bgLight,
       cardTheme: CardThemeData(
         color: Colors.white,
@@ -85,7 +85,7 @@ class AppTheme {
         primary: orangePrimary,
         secondary: tealSecondary,
         brightness: Brightness.dark,
-      ).copyWith(background: bgDark),
+      ).copyWith(surface: bgDark),
       scaffoldBackgroundColor: bgDark,
       cardTheme: CardThemeData(
         color: const Color(0xFF2A2A2A),
@@ -145,3 +145,4 @@ class AppTheme {
     );
   }
 }
+

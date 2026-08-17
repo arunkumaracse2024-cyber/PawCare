@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../../../state/app_state.dart';
+import '../../../state/encyclopedia_provider.dart';
+import '../../../services/advisory_service.dart';
 
 class AdvisoryScreen extends StatefulWidget {
   const AdvisoryScreen({super.key});
@@ -35,106 +39,7 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
   }
 
   // Simple offline rule-based reasoning engine
-  AdvisoryResult _evaluateSymptoms() {
-    final hasVomiting = _symptoms['Frequent Vomiting or Diarrhea'] ?? false;
-    final hasLethargy = _symptoms['Severe Lethargy / Low Energy'] ?? false;
-    final hasAppetiteLoss =
-        _symptoms['Loss of Appetite / Refusing Water'] ?? false;
-    final hasFever = _symptoms['Fever / Very Warm Ears'] ?? false;
-    final hasCough = _symptoms['Slight Coughing or Sneezing'] ?? false;
-    final hasScratch = _symptoms['Minor Skin Scratch or Redness'] ?? false;
 
-    final isLongDuration = _durationAnswer == '>48 Hours';
-    final isYoungPet = _ageAnswer == 'Puppy/Kitten (<6 months)';
-
-    // Rule 1: Emergency Red Flag Combined symptoms
-    if (hasVomiting && hasLethargy) {
-      return AdvisoryResult(
-        level: SeverityLevel.urgent,
-        title: 'Urgent Veterinary Attention Required',
-        guideline:
-            'Vomiting combined with severe lethargy is a red-flag condition representing possible dehydration, obstruction, or systemic infection. Do not wait for symptoms to pass.',
-        actions: [
-          'Call your local veterinary hospital immediately.',
-          'Do not offer heavy food; keep small amounts of fresh water close.',
-          'Keep your pet warm and calm during transport.',
-        ],
-      );
-    }
-
-    // Rule 2: Vulnerable age check
-    if (isYoungPet && (hasVomiting || hasLethargy || hasAppetiteLoss)) {
-      return AdvisoryResult(
-        level: SeverityLevel.urgent,
-        title: 'Urgent Checkup for Young Pet',
-        guideline:
-            'Puppies and kittens under 6 months have low safety reserves. Dehydration or loss of glucose from not eating can become critical within hours.',
-        actions: [
-          'Contact your veterinarian or emergency clinic for consultation.',
-          'Keep your pet dry and warm.',
-          'Monitor gums: they should be moist and pink, not dry or pale.',
-        ],
-      );
-    }
-
-    // Rule 3: Prolonged general symptoms
-    if (isLongDuration && (hasFever || hasCough || hasAppetiteLoss)) {
-      return AdvisoryResult(
-        level: SeverityLevel.caution,
-        title: 'Veterinary Checkup Recommended',
-        guideline:
-            'General symptoms lasting for more than 48 hours require physical inspection. Safe self-recovery is unlikely without diagnostic assistance.',
-        actions: [
-          'Book an appointment with your vet within the next 24 hours.',
-          'Ensure your pet has quiet, comfortable isolation space.',
-          'Keep details of when they last ate or passed urine/stool.',
-        ],
-      );
-    }
-
-    // Rule 4: Scratch home care guidelines
-    if (hasScratch && !hasVomiting && !hasLethargy) {
-      return AdvisoryResult(
-        level: SeverityLevel.homecare,
-        title: 'Home Care for Minor Scratches',
-        guideline:
-            'A minor scratch or superficial redness with normal appetite and energy can usually be monitored and treated at home.',
-        actions: [
-          'Clean the area gently using sterile saline or diluted pet-safe soap.',
-          'Apply an e-collar (cone) to prevent your pet from licking the wound.',
-          'Keep dry and inspect twice daily for signs of swelling or pus.',
-        ],
-      );
-    }
-
-    // Rule 5: Slight cold / respiratory
-    if (hasCough && !hasVomiting) {
-      return AdvisoryResult(
-        level: SeverityLevel.homecare,
-        title: 'Mild Respiratory Comfort',
-        guideline:
-            'Slight coughing or sneezing with normal energy could represent mild kennel cough or seasonal dust allergy.',
-        actions: [
-          'Keep the pet comfortable, warm, and away from dry draft currents.',
-          'Isolate from other household pets to prevent contagions.',
-          'If coughing becomes deep/honking, consult your vet.',
-        ],
-      );
-    }
-
-    // Default Case
-    return AdvisoryResult(
-      level: SeverityLevel.caution,
-      title: 'General Monitoring Suggested',
-      guideline:
-          'Your pet has registered mild symptoms. While not showing emergency signals, monitoring and rest are advised.',
-      actions: [
-        'Place a bowl of clean water nearby and monitor their consumption.',
-        'Refrain from feeding table scraps or switching dog/cat food today.',
-        'Track symptoms for the next 24-48 hours. Call vet if things decline.',
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +63,7 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
           // DISCLAIMER BANNER
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            color: Colors.redAccent.withOpacity(0.12),
+            color: Colors.redAccent.withValues(alpha: 0.12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -249,7 +154,11 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
       case 1:
         return _buildQuestionnaire(isDark);
       case 2:
-        return _buildGuidelineReport(theme, isDark);
+        return _buildGuidelineReport(
+            theme,
+            isDark,
+            Provider.of<AppState>(context),
+            Provider.of<EncyclopediaProvider>(context));
       default:
         return const SizedBox();
     }
@@ -343,19 +252,23 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 12),
-        ...durations.map((duration) {
-          return RadioListTile<String>(
-            title: Text(duration),
-            value: duration,
-            groupValue: _durationAnswer,
-            activeColor: AppTheme.tealSecondary,
-            onChanged: (val) {
-              setState(() {
-                _durationAnswer = val;
-              });
-            },
-          );
-        }),
+        RadioGroup<String>(
+          groupValue: _durationAnswer,
+          onChanged: (val) {
+            setState(() {
+              _durationAnswer = val;
+            });
+          },
+          child: Column(
+            children: durations.map((duration) {
+              return RadioListTile<String>(
+                title: Text(duration),
+                value: duration,
+                activeColor: AppTheme.tealSecondary,
+              );
+            }).toList(),
+          ),
+        ),
         const SizedBox(height: 24),
 
         // Age question
@@ -364,19 +277,23 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 12),
-        ...ages.map((age) {
-          return RadioListTile<String>(
-            title: Text(age),
-            value: age,
-            groupValue: _ageAnswer,
-            activeColor: AppTheme.tealSecondary,
-            onChanged: (val) {
-              setState(() {
-                _ageAnswer = val;
-              });
-            },
-          );
-        }),
+        RadioGroup<String>(
+          groupValue: _ageAnswer,
+          onChanged: (val) {
+            setState(() {
+              _ageAnswer = val;
+            });
+          },
+          child: Column(
+            children: ages.map((age) {
+              return RadioListTile<String>(
+                title: Text(age),
+                value: age,
+                activeColor: AppTheme.tealSecondary,
+              );
+            }).toList(),
+          ),
+        ),
         const SizedBox(height: 32),
 
         Row(
@@ -408,19 +325,28 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
   }
 
   // --- STEP 3: RESULTS SUMMARY REPORT ---
-  Widget _buildGuidelineReport(ThemeData theme, bool isDark) {
-    final result = _evaluateSymptoms();
+  Widget _buildGuidelineReport(ThemeData theme, bool isDark, AppState state, EncyclopediaProvider encyclopedia) {
+    final activeSymptoms = _symptoms.entries.where((e) => e.value).map((e) => e.key).toList();
+    final petSpecies = state.selectedPet?.species ?? 'dog';
+    
+    final report = AdvisoryService.evaluateSymptoms(
+      diseases: encyclopedia.diseases,
+      activeSymptoms: activeSymptoms,
+      petSpecies: petSpecies,
+      ageAnswer: _ageAnswer ?? '',
+      durationAnswer: _durationAnswer ?? '',
+    );
 
     // Choose styling color based on severity
-    final Color severityColor = result.level == SeverityLevel.urgent
+    final Color severityColor = report.overallSeverity == SeverityLevel.urgent
         ? Colors.red
-        : result.level == SeverityLevel.caution
+        : report.overallSeverity == SeverityLevel.caution
         ? Colors.orange
         : Colors.green;
 
-    final IconData severityIcon = result.level == SeverityLevel.urgent
+    final IconData severityIcon = report.overallSeverity == SeverityLevel.urgent
         ? Icons.error_rounded
-        : result.level == SeverityLevel.caution
+        : report.overallSeverity == SeverityLevel.caution
         ? Icons.warning_rounded
         : Icons.healing_rounded;
 
@@ -428,17 +354,18 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Step 3: Advisory Recommendations',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          'Evaluation Results',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        const SizedBox(height: 20),
-
-        // Severity Banner
+        const SizedBox(height: 16),
+        
+        // Overall severity banner
         Card(
-          color: severityColor.withOpacity(0.08),
+          color: severityColor.withAlpha((0.15 * 255).toInt()),
+          elevation: 0,
           shape: RoundedRectangleBorder(
+            side: BorderSide(color: severityColor, width: 1.5),
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: severityColor.withOpacity(0.3), width: 1.5),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -451,19 +378,23 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        result.title,
+                        report.overallSeverity == SeverityLevel.urgent
+                            ? 'High Concern'
+                            : report.overallSeverity == SeverityLevel.caution
+                            ? 'Moderate Concern'
+                            : 'Low Concern',
                         style: TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
                           color: severityColor,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Category: ${result.level.name.toUpperCase()}',
+                        report.generalGuidance,
                         style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? Colors.white60 : Colors.black45,
+                          fontSize: 14,
+                          color: isDark ? Colors.white70 : Colors.black87,
                         ),
                       ),
                     ],
@@ -475,52 +406,62 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Result Guideline
-        const Text(
-          'Assessment Narrative',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              result.guideline,
-              style: const TextStyle(fontSize: 14, height: 1.45),
-            ),
+        if (report.topMatches.isNotEmpty) ...[
+          const Text(
+            'Possible Matches',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
-        ),
-        const SizedBox(height: 24),
-
-        // Action Steps Items
-        const Text(
-          'Suggested Action Plan',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-        const SizedBox(height: 10),
-        ...result.actions.map((act) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.arrow_right_rounded,
-                  color: AppTheme.tealSecondary,
-                  size: 24,
+          const SizedBox(height: 8),
+          ...report.topMatches.map((match) {
+            final matchColor = match.disease.level == 'urgent'
+                ? Colors.red
+                : match.disease.level == 'caution'
+                ? Colors.orange
+                : Colors.green;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.health_and_safety, color: matchColor, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Symptoms may be consistent with ${match.disease.title}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      match.disease.guideline,
+                      style: const TextStyle(fontSize: 13, height: 1.45),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Actions to consider:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    ...match.disease.actions.map((act) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Expanded(child: Text(act, style: const TextStyle(fontSize: 12, height: 1.3))),
+                            ],
+                          ),
+                        )),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    act,
-                    style: const TextStyle(fontSize: 14, height: 1.3),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-        const SizedBox(height: 36),
+              ),
+            );
+          }),
+          const SizedBox(height: 24),
+        ],
 
         Row(
           children: [
@@ -544,20 +485,8 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
       ],
     );
   }
+
 }
 
-enum SeverityLevel { urgent, caution, homecare }
 
-class AdvisoryResult {
-  final SeverityLevel level;
-  final String title;
-  final String guideline;
-  final List<String> actions;
 
-  AdvisoryResult({
-    required this.level,
-    required this.title,
-    required this.guideline,
-    required this.actions,
-  });
-}

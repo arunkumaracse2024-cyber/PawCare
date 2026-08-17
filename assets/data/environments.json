@@ -1,0 +1,22 @@
+{
+    "environments": [
+        {
+            "id": "e1",
+            "species": "dog",
+            "title": "Safe Backyard",
+            "description": "Secure fencing, toxic plants removed, fresh water available."
+        },
+        {
+            "id": "e2",
+            "species": "cat",
+            "title": "Enriched Indoors",
+            "description": "Scratching posts, high resting places, window views."
+        },
+        {
+            "id": "e3",
+            "species": "bird",
+            "title": "Proper Cage Setup",
+            "description": "Appropriate bar spacing, varied perches, draft-free location."
+        }
+    ]
+}

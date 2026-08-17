@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../theme/app_theme.dart';
 import '../../../state/app_state.dart';
+import '../../../state/encyclopedia_provider.dart';
+import '../../../widgets/empty_state_widget.dart';
 import '../../../models/behaviour_log.dart';
+import '../../../models/pet.dart';
 
 class BehaviourScreen extends StatefulWidget {
   const BehaviourScreen({super.key});
@@ -19,7 +22,7 @@ class _BehaviourScreenState extends State<BehaviourScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -69,10 +72,11 @@ class _BehaviourScreenState extends State<BehaviourScreen>
           labelColor: AppTheme.orangeDeep,
           unselectedLabelColor: isDark
               ? Colors.white60
-              : Colors.black.withOpacity(0.48),
+              : Colors.black.withAlpha((0.48 * 255).toInt()),
           tabs: const [
             Tab(icon: Icon(Icons.show_chart_rounded), text: 'Trend Charts'),
             Tab(icon: Icon(Icons.history_rounded), text: 'Log History'),
+            Tab(icon: Icon(Icons.menu_book_rounded), text: 'Guide'),
           ],
         ),
       ),
@@ -89,6 +93,7 @@ class _BehaviourScreenState extends State<BehaviourScreen>
               children: [
                 _buildChartsTab(logs, isDark),
                 _buildHistoryTab(logs, state, isDark),
+                _buildGuideTab(state, pet, isDark, Provider.of<EncyclopediaProvider>(context)),
               ],
             ),
     );
@@ -160,7 +165,7 @@ class _BehaviourScreenState extends State<BehaviourScreen>
         color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6),
         ],
       ),
       padding: const EdgeInsets.fromLTRB(16, 24, 24, 16),
@@ -227,7 +232,7 @@ class _BehaviourScreenState extends State<BehaviourScreen>
               dotData: const FlDotData(show: true),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppTheme.orangePrimary.withOpacity(0.12),
+                color: AppTheme.orangePrimary.withAlpha((0.12 * 255).toInt()),
               ),
             ),
           ],
@@ -260,7 +265,7 @@ class _BehaviourScreenState extends State<BehaviourScreen>
         color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6),
         ],
       ),
       padding: const EdgeInsets.fromLTRB(16, 24, 24, 16),
@@ -327,11 +332,9 @@ class _BehaviourScreenState extends State<BehaviourScreen>
     bool isDark,
   ) {
     if (logs.isEmpty) {
-      return Center(
-        child: Text(
-          'No logs saved yet. Create your first behaviour log!',
-          style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
-        ),
+      return const EmptyStateWidget(
+        icon: Icons.history_rounded,
+        message: 'No logs saved yet. Create your first behaviour log!',
       );
     }
 
@@ -456,6 +459,75 @@ class _BehaviourScreenState extends State<BehaviourScreen>
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+
+  Widget _buildGuideTab(AppState state, Pet pet, bool isDark, EncyclopediaProvider encyclopedia) {
+    final traits = encyclopedia.behaviours.where((b) => b.species == pet.species.toLowerCase()).toList();
+    if (traits.isEmpty) {
+      return Center(
+        child: EmptyStateWidget(
+          icon: Icons.menu_book_rounded,
+          message: 'No behaviour guide available for ${pet.species}.',
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: traits.length,
+      itemBuilder: (context, index) {
+        final t = traits[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.orangePrimary.withAlpha((0.2 * 255).toInt()),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        t.category,
+                        style: const TextStyle(
+                          color: AppTheme.orangePrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        t.traitName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  t.description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -619,7 +691,7 @@ class _AddBehaviourLogSheetState extends State<AddBehaviourLogSheet> {
                               ? Colors.white
                               : (isDark
                                     ? Colors.white60
-                                    : Colors.black.withOpacity(0.8)),
+                                    : Colors.black.withAlpha((0.8 * 255).toInt())),
                         ),
                       ),
                     ),
@@ -651,7 +723,7 @@ class _AddBehaviourLogSheetState extends State<AddBehaviourLogSheet> {
                   notes: _notesController.text.trim(),
                 );
 
-                if (mounted) {
+                if (context.mounted) {
                   Navigator.of(context).pop();
                 }
               },
@@ -663,3 +735,6 @@ class _AddBehaviourLogSheetState extends State<AddBehaviourLogSheet> {
     );
   }
 }
+
+
+

@@ -4,9 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../theme/app_theme.dart';
 import '../../../state/app_state.dart';
+import '../../../state/encyclopedia_provider.dart';
+import '../../../widgets/empty_state_widget.dart';
 import '../../../models/health_record.dart';
 import '../../../services/pdf_service.dart';
-
+import '../../../services/file_storage_service.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 class HealthWalletScreen extends StatefulWidget {
   const HealthWalletScreen({super.key});
 
@@ -17,16 +21,16 @@ class HealthWalletScreen extends StatefulWidget {
 class _HealthWalletScreenState extends State<HealthWalletScreen> {
   bool _exporting = false;
 
-  void _showAddRecordDialog(BuildContext context) {
+  void _showAddRecordDialog(BuildContext context, {HealthRecord? record}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => const FractionallySizedBox(
+      builder: (ctx) => FractionallySizedBox(
         heightFactor: 0.8,
-        child: AddRecordSheet(),
+        child: AddEditRecordSheet(record: record),
       ),
     );
   }
@@ -55,33 +59,42 @@ class _HealthWalletScreenState extends State<HealthWalletScreen> {
           builder: (ctx) => AlertDialog(
             title: const Row(
               children: [
-                Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent),
+                Icon(Icons.check_circle_rounded, color: Colors.green),
                 SizedBox(width: 8),
-                Text('PDF Exported!'),
+                Text('Report Ready!'),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Your Health Wallet report has been generated successfully.',
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Saved to Temp Directory:\n${pdfFile.path}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
+            content: const Text(
+              'Your comprehensive Health Wallet PDF has been securely generated and saved.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  OpenFilex.open(pdfFile.path);
+                },
+                child: const Text('Open'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  SharePlus.instance.share(
+                    ShareParams(
+                      files: [XFile(pdfFile.path)],
+                      text: 'PawCare Health Report for ${pet.name}',
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.share_rounded, size: 16),
+                label: const Text('Share'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.tealSecondary,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -170,38 +183,12 @@ class _HealthWalletScreenState extends State<HealthWalletScreen> {
   }
 
   Widget _buildEmptyState(bool isDark) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.folder_shared_rounded,
-                size: 64,
-                color: Colors.amber,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Your Health Wallet is Empty',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add medical reports, vaccination cards, prescriptions, or clinical bills to secure them in one offline app vault.',
-              style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return EmptyStateWidget(
+      icon: Icons.folder_shared_rounded,
+      title: 'Your Health Wallet is Empty',
+      message: 'Add medical reports, vaccination cards, prescriptions, or clinical bills to secure them in one offline app vault.',
+      iconColor: Colors.amber,
+      iconBackgroundColor: Colors.amber.withValues(alpha: 0.12),
     );
   }
 
@@ -237,7 +224,7 @@ class _HealthWalletScreenState extends State<HealthWalletScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: recordColor.withOpacity(0.12),
+                  backgroundColor: recordColor.withValues(alpha: 0.12),
                   child: Icon(recordIcon, color: recordColor),
                 ),
                 const SizedBox(width: 14),
@@ -263,6 +250,17 @@ class _HealthWalletScreenState extends State<HealthWalletScreen> {
                   ),
                 ),
                 GestureDetector(
+                  onTap: () => _showAddRecordDialog(context, record: rec),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      color: Colors.grey,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                GestureDetector(
                   onTap: () {
                     state.deleteHealthRecord(rec.id);
                   },
@@ -285,13 +283,29 @@ class _HealthWalletScreenState extends State<HealthWalletScreen> {
                 rec.attachmentPath!.isNotEmpty) ...[
               const SizedBox(height: 12),
               InkWell(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('File location: ${rec.attachmentPath}'),
-                      backgroundColor: AppTheme.tealSecondary,
-                    ),
-                  );
+                onTap: () async {
+                  final path = rec.attachmentPath!;
+                  final file = File(path);
+                  if (await file.exists()) {
+                     final result = await OpenFilex.open(path);
+                     if (result.type != ResultType.done && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Could not open file: ${result.message}'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                     }
+                  } else {
+                     if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('File not found on device.'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                     }
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -334,20 +348,36 @@ class _HealthWalletScreenState extends State<HealthWalletScreen> {
   }
 }
 
-class AddRecordSheet extends StatefulWidget {
-  const AddRecordSheet({super.key});
+class AddEditRecordSheet extends StatefulWidget {
+  final HealthRecord? record;
+  const AddEditRecordSheet({super.key, this.record});
 
   @override
-  State<AddRecordSheet> createState() => _AddRecordSheetState();
+  State<AddEditRecordSheet> createState() => _AddEditRecordSheetState();
 }
 
-class _AddRecordSheetState extends State<AddRecordSheet> {
+class _AddEditRecordSheetState extends State<AddEditRecordSheet> {
   final _formKey = GlobalKey<FormState>();
   String _title = '';
   String _type = 'Vaccination';
   DateTime _selectedDate = DateTime.now();
   String _notes = '';
   String? _attachmentPath;
+  String? _originalAttachmentPath;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.record != null) {
+      _title = widget.record!.title;
+      _type = widget.record!.type;
+      _selectedDate = widget.record!.date;
+      _notes = widget.record!.details;
+      _attachmentPath = widget.record!.attachmentPath;
+      _originalAttachmentPath = widget.record!.attachmentPath;
+    }
+  }
 
   final List<String> _types = [
     'Vaccination',
@@ -411,16 +441,55 @@ class _AddRecordSheetState extends State<AddRecordSheet> {
             const SizedBox(height: 20),
 
             // Title
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'Diagnosis / Name',
-                prefixIcon: Icon(Icons.bookmark_added_outlined),
-                hintText: 'e.g. Parvovirus Vaccine, or Gastro Medication',
+            if (_type == 'Vaccination')
+              Autocomplete<String>(
+                initialValue: TextEditingValue(text: _title),
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  final state = Provider.of<AppState>(context, listen: false);
+                  final encyclopedia = Provider.of<EncyclopediaProvider>(context, listen: false);
+                  final pet = state.selectedPet;
+                  if (pet == null) return const Iterable<String>.empty();
+                  final species = pet.species.toLowerCase();
+                  return encyclopedia.vaccines
+                      .where((v) => v.species == species)
+                      .map((v) => v.name)
+                      .where((name) => name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                },
+                onSelected: (String selection) {
+                  _title = selection;
+                },
+                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      labelText: 'Diagnosis / Name',
+                      prefixIcon: Icon(Icons.vaccines_rounded),
+                      hintText: 'e.g. Parvovirus Vaccine',
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Please enter a name' : null,
+                    onSaved: (v) => _title = v?.trim() ?? '',
+                    onChanged: (v) => _title = v,
+                  );
+                },
+              )
+            else
+              TextFormField(
+                initialValue: _title,
+                decoration: const InputDecoration(
+                  labelText: 'Diagnosis / Name',
+                  prefixIcon: Icon(Icons.bookmark_added_outlined),
+                  hintText: 'e.g. Parvovirus Vaccine, or Gastro Medication',
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Please enter a name' : null,
+                onSaved: (v) => _title = v?.trim() ?? '',
+                onChanged: (v) => _title = v,
               ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Please enter a name' : null,
-              onSaved: (v) => _title = v?.trim() ?? '',
-            ),
             const SizedBox(height: 16),
 
             // Type
@@ -508,12 +577,16 @@ class _AddRecordSheetState extends State<AddRecordSheet> {
             ),
             const SizedBox(height: 16),
 
-            // Notes
             TextFormField(
+              initialValue: _notes,
+              maxLines: 3,
               decoration: const InputDecoration(
-                labelText: 'Notes',
-                hintText: 'Dosage instructions or clinic name (optional)',
-                prefixIcon: Icon(Icons.notes_rounded),
+                labelText: 'Clinical Notes & Details',
+                alignLabelWithHint: true,
+                prefixIcon: Padding(
+                  padding: EdgeInsets.only(bottom: 32),
+                  child: Icon(Icons.description_outlined),
+                ),
               ),
               onSaved: (v) => _notes = v?.trim() ?? '',
             ),
@@ -544,26 +617,64 @@ class _AddRecordSheetState extends State<AddRecordSheet> {
             ],
 
             const Spacer(),
-
             ElevatedButton(
-              onPressed: () async {
-                if (!_formKey.currentState!.validate()) return;
-                _formKey.currentState!.save();
-
-                final state = Provider.of<AppState>(context, listen: false);
-                await state.addHealthRecord(
-                  title: _title,
-                  type: _type,
-                  date: _selectedDate,
-                  details: _notes,
-                  attachmentPath: _attachmentPath,
-                );
-
-                if (mounted) {
-                  Navigator.of(context).pop();
+              onPressed: _isSaving ? null : () async {
+                if (_formKey.currentState!.validate()) {
+                  _formKey.currentState!.save();
+                  setState(() => _isSaving = true);
+                  
+                  try {
+                    final state = Provider.of<AppState>(context, listen: false);
+                    
+                    // Handle attachment saving
+                    String? finalAttachmentPath = _attachmentPath;
+                    if (_attachmentPath != null && _attachmentPath != _originalAttachmentPath) {
+                      // A new file was picked, save it properly
+                      finalAttachmentPath = await FileStorageService.saveHealthAttachment(_attachmentPath!);
+                      
+                      // Delete the old one if it existed
+                      if (_originalAttachmentPath != null) {
+                        await FileStorageService.deleteAttachment(_originalAttachmentPath);
+                      }
+                    }
+                    
+                    if (widget.record == null) {
+                       await state.addHealthRecord(
+                          title: _title,
+                          type: _type,
+                          date: _selectedDate,
+                          details: _notes,
+                          attachmentPath: finalAttachmentPath,
+                       );
+                    } else {
+                       final updated = widget.record!.copyWith(
+                          title: _title,
+                          type: _type,
+                          date: _selectedDate,
+                          details: _notes,
+                          attachmentPath: finalAttachmentPath,
+                       );
+                       await state.updateHealthRecord(updated);
+                    }
+                    
+                    if (context.mounted) Navigator.pop(context);
+                  } finally {
+                    if (mounted) {
+                      setState(() => _isSaving = false);
+                    }
+                  }
                 }
               },
-              child: const Text('Save Record'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: AppTheme.orangePrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isSaving 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                  : Text(widget.record == null ? 'Save Record' : 'Update Record'),
             ),
           ],
         ),
@@ -571,3 +682,11 @@ class _AddRecordSheetState extends State<AddRecordSheet> {
     );
   }
 }
+
+
+
+
+
+
+
+

@@ -185,7 +185,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppTheme.orangePrimary.withOpacity(0.15),
+                          color: AppTheme.orangePrimary.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -435,7 +435,7 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.orangePrimary.withOpacity(0.15) : Colors.transparent,
+          color: isSelected ? AppTheme.orangePrimary.withValues(alpha: 0.15) : Colors.transparent,
           border: Border.all(
             color: isSelected ? AppTheme.orangePrimary : Colors.grey.shade400,
             width: 1.5,
@@ -460,3 +460,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
+
+
+

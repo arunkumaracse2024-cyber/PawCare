@@ -135,7 +135,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: AppTheme.tealSecondary.withOpacity(0.12),
+                        backgroundColor: AppTheme.tealSecondary.withValues(alpha: 0.12),
                         child: const Icon(Icons.local_hospital_rounded, color: AppTheme.tealSecondary),
                       ),
                       const SizedBox(width: 14),
@@ -201,7 +201,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                               margin: const EdgeInsets.only(right: 12, bottom: 8),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppTheme.tealSecondary.withOpacity(0.15)
+                                    ? AppTheme.tealSecondary.withValues(alpha: 0.15)
                                     : (isDark ? const Color(0xFF2C2C2C) : Colors.white),
                                 borderRadius: BorderRadius.circular(18),
                                 border: Border.all(
@@ -270,3 +270,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     );
   }
 }
+
+
+

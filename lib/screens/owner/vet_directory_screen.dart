@@ -51,7 +51,7 @@ class VetDirectoryScreen extends StatelessWidget {
                         Row(
                           children: [
                             CircleAvatar(
-                              backgroundColor: AppTheme.tealSecondary.withOpacity(0.12),
+                              backgroundColor: AppTheme.tealSecondary.withValues(alpha: 0.12),
                               radius: 24,
                               child: const Icon(Icons.local_hospital_rounded, color: AppTheme.tealSecondary),
                             ),
@@ -155,3 +155,4 @@ class VetDirectoryScreen extends StatelessWidget {
     return verified ? AppTheme.tealSecondary : Colors.amber;
   }
 }
+

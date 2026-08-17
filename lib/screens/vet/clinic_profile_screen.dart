@@ -126,10 +126,10 @@ class _ClinicProfileScreenState extends State<ClinicProfileScreen> {
 
               // Mock Verified checkbox
               Card(
-                color: AppTheme.tealSecondary.withOpacity(0.05),
+                color: AppTheme.tealSecondary.withValues(alpha: 0.05),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: AppTheme.tealSecondary.withOpacity(0.3)),
+                  side: BorderSide(color: AppTheme.tealSecondary.withValues(alpha: 0.3)),
                 ),
                 child: CheckboxListTile(
                   title: const Text(
@@ -164,3 +164,6 @@ class _ClinicProfileScreenState extends State<ClinicProfileScreen> {
     );
   }
 }
+
+
+

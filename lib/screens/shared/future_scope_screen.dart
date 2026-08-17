@@ -57,9 +57,9 @@ class FutureScopeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.tealSecondary.withOpacity(0.1),
+              color: AppTheme.tealSecondary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.tealSecondary.withOpacity(0.3)),
+              border: Border.all(color: AppTheme.tealSecondary.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -84,7 +84,7 @@ class FutureScopeScreen extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.orangePrimary.withOpacity(0.12),
+                  backgroundColor: AppTheme.orangePrimary.withValues(alpha: 0.12),
                   child: Icon(feat['icon'] as IconData, color: AppTheme.orangePrimary),
                 ),
                 title: Text(
@@ -103,3 +103,4 @@ class FutureScopeScreen extends StatelessWidget {
     );
   }
 }
+

@@ -1,29 +1,44 @@
-import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import '../models/pet.dart';
 import '../models/reminder.dart';
+import '../services/notification_service.dart';
+import '../services/file_storage_service.dart';
+
+import '../services/reminder_recurrence_service.dart';
+
 import '../models/behaviour_log.dart';
 import '../models/health_record.dart';
-import '../models/encyclopedia.dart';
+import '../models/weight_record.dart';
+
 import '../models/user_profile.dart';
 import '../models/appointment.dart';
 import '../models/vet_profile.dart';
 import '../models/shop_profile.dart';
 import '../models/care_note.dart';
 import '../models/time_slot.dart';
-import '../services/firebase_service.dart';
+import '../services/local_data_service.dart';
 import '../services/todo_merge_engine.dart';
+import '../database/database_helper.dart';
+import 'encyclopedia_provider.dart';
 
 class AppState extends ChangeNotifier {
-  final FirebaseService _db = FirebaseService();
+  EncyclopediaProvider? encyclopedia;
 
-  List<Species> _speciesList = [];
+  void updateEncyclopedia(EncyclopediaProvider ency) {
+    encyclopedia = ency;
+    notifyListeners();
+  }
+  final LocalDataService _db = LocalDataService();
+
   List<Pet> _pets = [];
   Pet? _selectedPet;
+  List<PetReminder> _allPetsReminders = [];
+
   List<PetReminder> _reminders = [];
   List<BehaviourLog> _behaviourLogs = [];
   List<HealthRecord> _healthRecords = [];
+  final List<WeightRecord> _weightHistory = [];
 
   // Connect Role Specifics
   UserProfile? _currentUser;
@@ -41,12 +56,15 @@ class AppState extends ChangeNotifier {
   bool _isDarkMode = false;
 
   // Getters
-  List<Species> get speciesList => _speciesList;
+
   List<Pet> get pets => _pets;
+  List<PetReminder> get allPetsReminders => _allPetsReminders;
+
   Pet? get selectedPet => _selectedPet;
   List<PetReminder> get reminders => _reminders;
   List<BehaviourLog> get behaviourLogs => _behaviourLogs;
   List<HealthRecord> get healthRecords => _healthRecords;
+  List<WeightRecord> get weightHistory => _weightHistory;
   bool get isLoading => _isLoading;
   bool get isInitializing => _isInitializing;
   bool get isDarkMode => _isDarkMode;
@@ -71,8 +89,9 @@ class AppState extends ChangeNotifier {
   Future<void> _initApp() async {
     _setLoading(true);
     await _db.init();
-    await loadEncyclopedia();
-    if (_db.isAuthenticated) {
+    // Ensure the SQLite database is fully initialized before loading data
+    await DatabaseHelper.instance.database;
+        if (_db.isAuthenticated) {
       try {
         final uid = _db.currentUid!;
         _currentUser = await _db.getUserProfile(uid);
@@ -95,21 +114,6 @@ class AppState extends ChangeNotifier {
   void toggleTheme() {
     _isDarkMode = !_isDarkMode;
     notifyListeners();
-  }
-
-  // --- ENCYCLOPEDIA LOAD ---
-  Future<void> loadEncyclopedia() async {
-    try {
-      final jsonStr = await rootBundle.loadString('assets/data/pet_encyclopedia.json');
-      final Map<String, dynamic> data = json.decode(jsonStr);
-      final List<dynamic> list = data['species'] ?? [];
-      _speciesList = list
-          .map((s) => Species.fromMap(Map<String, dynamic>.from(s as Map)))
-          .toList();
-      debugPrint('[AppState] Loaded ${_speciesList.length} species from encyclopedia.');
-    } catch (e) {
-      debugPrint('[AppState] Error loading encyclopedia: $e');
-    }
   }
 
   // --- AUTH METHODS ---
@@ -228,15 +232,20 @@ class AppState extends ChangeNotifier {
 
   Future<void> refreshSubmodels() async {
     if (_selectedPet != null) {
-      _reminders = await _db.fetchReminders(_selectedPet!.id);
+      if (_pets.isNotEmpty) {
+        _allPetsReminders = await _db.getRemindersForPets(_pets.map((p) => p.id).toList());
+      } else {
+        _allPetsReminders = [];
+      }
+      _reminders = _allPetsReminders.where((r) => r.petId == _selectedPet!.id).toList();
       _behaviourLogs = await _db.fetchBehaviourLogs(_selectedPet!.id);
       _healthRecords = await _db.fetchHealthRecords(_selectedPet!.id);
       _careNotes = await _db.fetchCareNotes(_selectedPet!.id);
 
       final List<CareNote> standardCareNotes = [];
-      final speciesMatch = _speciesList.firstWhere(
+      final speciesMatch = encyclopedia!.speciesList.firstWhere(
         (s) => s.id == _selectedPet!.species.toLowerCase(),
-        orElse: () => _speciesList.first,
+        orElse: () => encyclopedia!.speciesList.first,
       );
 
       final timelineMilestones = [
@@ -261,8 +270,9 @@ class AppState extends ChangeNotifier {
         ));
       }
 
-      for (int i = 0; i < speciesMatch.recommendedVaccines.length; i++) {
-        final v = speciesMatch.recommendedVaccines[i];
+      final speciesVaccines = encyclopedia!.vaccines.where((v) => v.species == speciesMatch.id).toList();
+      for (int i = 0; i < speciesVaccines.length; i++) {
+        final v = speciesVaccines[i];
         standardCareNotes.add(CareNote(
           id: '${_selectedPet!.id}_std_vax_$i',
           petId: _selectedPet!.id,
@@ -294,6 +304,11 @@ class AppState extends ChangeNotifier {
     _setLoading(false);
   }
 
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
   // --- PET MANAGEMENT ---
   Future<void> addPet({
     required String name,
@@ -307,14 +322,38 @@ class AppState extends ChangeNotifier {
     try {
       final petId = 'pet_${DateTime.now().millisecondsSinceEpoch}';
 
-      final checklist = [
-        ChecklistItem(id: '${petId}_chk1', title: 'Prepare room and bedding', category: 'Day 1', isDone: false),
-        ChecklistItem(id: '${petId}_chk2', title: 'Buy high quality specialized food', category: 'Day 1', isDone: false),
-        ChecklistItem(id: '${petId}_chk3', title: 'Install tags and microchip', category: 'Week 1', isDone: false),
-        ChecklistItem(id: '${petId}_chk4', title: 'Establish veterinary contact', category: 'Week 1', isDone: false),
-        ChecklistItem(id: '${petId}_chk5', title: 'Introduce leash and collar routines', category: 'Week 1', isDone: false),
-        ChecklistItem(id: '${petId}_chk6', title: 'Start initial social play training', category: 'Month 1', isDone: false),
-      ];
+      final speciesMatch = encyclopedia!.speciesList.firstWhere(
+        (s) => s.id == species.toLowerCase(),
+        orElse: () => encyclopedia!.speciesList.first,
+      );
+
+      final checklist = <ChecklistItem>[];
+      
+      final relevantTasks = encyclopedia!.careTasks.where((t) => t.species == speciesMatch.id || t.species == 'all').toList();
+      for (int i = 0; i < relevantTasks.length; i++) {
+         checklist.add(ChecklistItem(
+            id: 'sys_${petId}_chk_$i',
+            title: relevantTasks[i].title,
+            category: _capitalize(relevantTasks[i].category),
+            isDone: false,
+         ));
+      }
+      
+      final relevantStages = encyclopedia!.growthStages.where((g) => g.species == speciesMatch.id).toList();
+      for (int i = 0; i < relevantStages.length; i++) {
+         final g = relevantStages[i];
+         checklist.add(ChecklistItem(
+            id: 'sys_${petId}_stage_$i',
+            title: 'Read about ${g.stageName} stage',
+            category: 'Milestones',
+            isDone: false,
+         ));
+      }
+      
+      if (checklist.isEmpty) {
+         checklist.add(ChecklistItem(id: 'sys_${petId}_gen1', title: 'Establish veterinary contact', category: 'General', isDone: false));
+         checklist.add(ChecklistItem(id: 'sys_${petId}_gen2', title: 'Setup feeding area', category: 'General', isDone: false));
+      }
 
       final newPet = Pet(
         id: petId,
@@ -332,12 +371,10 @@ class AppState extends ChangeNotifier {
 
       await _db.savePet(newPet);
 
-      final speciesMatch = _speciesList.firstWhere(
-        (s) => s.id == species.toLowerCase(),
-        orElse: () => _speciesList.first,
-      );
-      for (int i = 0; i < speciesMatch.recommendedVaccines.length; i++) {
-        final v = speciesMatch.recommendedVaccines[i];
+
+      final speciesVaccines = encyclopedia!.vaccines.where((v) => v.species == speciesMatch.id).toList();
+      for (int i = 0; i < speciesVaccines.length; i++) {
+        final v = speciesVaccines[i];
         final reminder = PetReminder(
           id: '${petId}_vax_$i',
           petId: petId,
@@ -399,6 +436,30 @@ class AppState extends ChangeNotifier {
     await updatePet(updatedPet);
   }
 
+  Future<void> addChecklistItem(ChecklistItem item) async {
+    if (_selectedPet == null) return;
+    final updatedChecklist = List<ChecklistItem>.from(_selectedPet!.checklist)..add(item);
+    final updatedPet = _selectedPet!.copyWith(checklist: updatedChecklist);
+    await updatePet(updatedPet);
+  }
+
+  Future<void> updateChecklistItem(ChecklistItem updatedItem) async {
+    if (_selectedPet == null) return;
+    final updatedChecklist = _selectedPet!.checklist.map((item) {
+      if (item.id == updatedItem.id) return updatedItem;
+      return item;
+    }).toList();
+    final updatedPet = _selectedPet!.copyWith(checklist: updatedChecklist);
+    await updatePet(updatedPet);
+  }
+
+  Future<void> deleteChecklistItem(String itemId) async {
+    if (_selectedPet == null) return;
+    final updatedChecklist = _selectedPet!.checklist.where((item) => item.id != itemId).toList();
+    final updatedPet = _selectedPet!.copyWith(checklist: updatedChecklist);
+    await updatePet(updatedPet);
+  }
+
   // --- REMINDER MANAGEMENT ---
   Future<void> addReminder({
     required String title,
@@ -419,6 +480,28 @@ class AppState extends ChangeNotifier {
         isDone: false,
       );
       await _db.saveReminder(reminder);
+      await NotificationService().scheduleReminderNotification(reminder, _selectedPet!.name);
+      await refreshSubmodels();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateReminder(PetReminder reminder) async {
+    _setLoading(true);
+    try {
+      // 1. Cancel the old notification to be safe
+      await NotificationService().cancelReminderNotification(reminder.id);
+      
+      // 2. Save the updated reminder in SQLite
+      await _db.saveReminder(reminder);
+      
+      // 3. Reschedule if it's not done
+      if (!reminder.isDone) {
+         final pet = _pets.firstWhere((p) => p.id == reminder.petId, orElse: () => _selectedPet!);
+         await NotificationService().scheduleReminderNotification(reminder, pet.name);
+      }
+      
       await refreshSubmodels();
     } finally {
       _setLoading(false);
@@ -430,9 +513,41 @@ class AppState extends ChangeNotifier {
     if (index == -1) return;
     _setLoading(true);
     try {
-      final updated = _reminders[index].copyWith(isDone: isDone);
+      final original = _reminders[index];
+      final updated = original.copyWith(isDone: isDone);
       await _db.saveReminder(updated);
+      
+      if (isDone) {
+        // Cancel the current notification
+        await NotificationService().cancelReminderNotification(id);
+        
+        // If it's recurring, create the next occurrence
+        if (original.repeatOption.toLowerCase() != 'none') {
+           final nextDate = ReminderRecurrenceService.calculateNextOccurrence(original.dateTime, original.repeatOption);
+           
+           // Check for duplicates to prevent spamming next occurrences
+           final bool duplicateExists = _reminders.any((r) => r.title == original.title && r.type == original.type && r.dateTime == nextDate);
+           if (!duplicateExists) {
+               final nextReminder = PetReminder(
+                  id: 'rem_${DateTime.now().millisecondsSinceEpoch}',
+                  petId: original.petId,
+                  title: original.title,
+                  type: original.type,
+                  dateTime: nextDate,
+                  repeatOption: original.repeatOption,
+                  isDone: false,
+               );
+               await _db.saveReminder(nextReminder);
+               await NotificationService().scheduleReminderNotification(nextReminder, _selectedPet!.name);
+           }
+        }
+      } else {
+        // Unchecked: Re-schedule the current reminder notification
+        await NotificationService().scheduleReminderNotification(updated, _selectedPet!.name);
+      }
       await refreshSubmodels();
+    } catch (e) {
+      debugPrint('[AppState] Error toggling reminder: $e');
     } finally {
       _setLoading(false);
     }
@@ -442,6 +557,7 @@ class AppState extends ChangeNotifier {
     _setLoading(true);
     try {
       await _db.deleteReminder(id);
+      await NotificationService().cancelReminderNotification(id);
       await refreshSubmodels();
     } finally {
       _setLoading(false);
@@ -511,9 +627,27 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> updateHealthRecord(HealthRecord updatedRecord) async {
+    _setLoading(true);
+    try {
+      await _db.saveHealthRecord(updatedRecord);
+      await refreshSubmodels();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> deleteHealthRecord(String recordId) async {
     _setLoading(true);
     try {
+      final index = _healthRecords.indexWhere((r) => r.id == recordId);
+      if (index != -1) {
+        final record = _healthRecords[index];
+        if (record.attachmentPath != null) {
+          await FileStorageService.deleteAttachment(record.attachmentPath);
+        }
+      }
+      
       await _db.deleteHealthRecord(recordId);
       await refreshSubmodels();
     } finally {
@@ -799,4 +933,47 @@ class AppState extends ChangeNotifier {
       _setLoading(false);
     }
   }
+  // --- WEIGHT HISTORY MANAGEMENT ---
+  
+  Future<void> _syncPetWeight() async {
+    if (_selectedPet == null) return;
+    if (_weightHistory.isEmpty) return;
+    
+    // Sort descending by date (latest first)
+    _weightHistory.sort((a, b) => b.date.compareTo(a.date));
+    
+    final latestWeight = _weightHistory.first.weight;
+    if (_selectedPet!.weight != latestWeight) {
+      final updatedPet = _selectedPet!.copyWith(weight: latestWeight);
+      await updatePet(updatedPet); 
+    }
+  }
+
+  Future<void> addWeightRecord(WeightRecord record) async {
+    await _db.addWeightRecord(record);
+    _weightHistory.add(record);
+    await _syncPetWeight();
+    notifyListeners();
+  }
+
+  Future<void> updateWeightRecord(WeightRecord record) async {
+    await _db.updateWeightRecord(record);
+    final index = _weightHistory.indexWhere((r) => r.id == record.id);
+    if (index != -1) {
+      _weightHistory[index] = record;
+      await _syncPetWeight();
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteWeightRecord(String id) async {
+    await _db.deleteWeightRecord(id);
+    _weightHistory.removeWhere((r) => r.id == id);
+    await _syncPetWeight();
+    notifyListeners();
+  }
 }
+
+
+
+

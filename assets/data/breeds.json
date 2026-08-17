@@ -1,0 +1,84 @@
+{
+    "breeds": [
+        {
+            "id": "golden_retriever",
+            "species": "dog",
+            "name": "Golden Retriever",
+            "temperament": "Friendly, Intelligent, Devoted",
+            "lifespan": "10-12 years",
+            "sizeRange": "25-34 kg",
+            "careGuide": "Requires daily exercise, weekly brushing, and regular mental stimulation.",
+            "funFact": "They have water-resistant double coats and webbed feet."
+        },
+        {
+            "id": "german_shepherd",
+            "species": "dog",
+            "name": "German Shepherd",
+            "temperament": "Confident, Courageous, Smart",
+            "lifespan": "7-10 years",
+            "sizeRange": "30-40 kg",
+            "careGuide": "Needs consistent obedience training, heavy physical activation, and early socialization.",
+            "funFact": "They are highly popular as working dogs."
+        },
+        {
+            "id": "french_bulldog",
+            "species": "dog",
+            "name": "French Bulldog",
+            "temperament": "Playful, Adaptable, Smart, Quiet",
+            "lifespan": "10-12 years",
+            "sizeRange": "9-13 kg",
+            "careGuide": "Keep cool in hot weather due to breathing sensitivity. Low exercise requirements.",
+            "funFact": "They cannot swim due to their squat frame."
+        },
+        {
+            "id": "persian",
+            "species": "cat",
+            "name": "Persian Cat",
+            "temperament": "Quiet, Sweet, Dignified",
+            "lifespan": "12-15 years",
+            "sizeRange": "3.5-5.5 kg",
+            "careGuide": "Requires daily grooming to prevent coat mats. Keep indoors.",
+            "funFact": "They have one of the oldest breed records in the world."
+        },
+        {
+            "id": "maine_coon",
+            "species": "cat",
+            "name": "Maine Coon",
+            "temperament": "Friendly, Playful, Gentle Giant",
+            "lifespan": "12-15 years",
+            "sizeRange": "6-11 kg",
+            "careGuide": "Need space to grow and run. Brush their thick shaggy coat twice weekly.",
+            "funFact": "They are well-adapted for harsh climates."
+        },
+        {
+            "id": "siamese",
+            "species": "cat",
+            "name": "Siamese Cat",
+            "temperament": "Vocal, Social, Affectionate",
+            "lifespan": "15-20 years",
+            "sizeRange": "3.5-5.5 kg",
+            "careGuide": "Thrives on human companionship, very active and requires interactive toys.",
+            "funFact": "Siamese kittens are born completely white."
+        },
+        {
+            "id": "budgerigar",
+            "species": "bird",
+            "name": "Budgerigar (Parakeet)",
+            "temperament": "Social, Playful, Chatterbox",
+            "lifespan": "5-10 years",
+            "sizeRange": "30-40 g",
+            "careGuide": "Needs flight cages and daily out-of-cage supervised time.",
+            "funFact": "They can mimic human voices."
+        },
+        {
+            "id": "cockatiel",
+            "species": "bird",
+            "name": "Cockatiel",
+            "temperament": "Gentle, Cuddly, Whistling",
+            "lifespan": "10-15 years",
+            "sizeRange": "80-100 g",
+            "careGuide": "Place cage in active living room. Provide chewing toys.",
+            "funFact": "Their crest position is a mood indicator."
+        }
+    ]
+}

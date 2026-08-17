@@ -83,7 +83,7 @@ class TodoFeedScreen extends StatelessWidget {
         side: BorderSide(
           color: item.isSatisfied
               ? Colors.transparent
-              : getSourceColor().withOpacity(0.3),
+              : getSourceColor().withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -96,7 +96,7 @@ class TodoFeedScreen extends StatelessWidget {
               children: [
                 // Category Icon
                 CircleAvatar(
-                  backgroundColor: getSourceColor().withOpacity(0.12),
+                  backgroundColor: getSourceColor().withValues(alpha: 0.12),
                   child: Icon(getIcon(), color: getSourceColor()),
                 ),
                 const SizedBox(width: 12),
@@ -131,7 +131,7 @@ class TodoFeedScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: getSourceColor().withOpacity(0.12),
+                    color: getSourceColor().withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -222,3 +222,4 @@ class TodoFeedScreen extends StatelessWidget {
     );
   }
 }
+

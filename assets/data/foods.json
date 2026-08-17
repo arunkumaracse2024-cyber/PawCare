@@ -1,0 +1,116 @@
+{
+    "foods": [
+        {
+            "id": "dog_f1",
+            "species": "dog",
+            "name": "Apples (no seeds)",
+            "isSafe": true,
+            "description": "Good source of vitamins A and C."
+        },
+        {
+            "id": "dog_f2",
+            "species": "dog",
+            "name": "Carrots",
+            "isSafe": true,
+            "description": "Good for teeth and low in calories."
+        },
+        {
+            "id": "dog_f3",
+            "species": "dog",
+            "name": "Cooked Chicken",
+            "isSafe": true,
+            "description": "Good source of protein."
+        },
+        {
+            "id": "dog_f4",
+            "species": "dog",
+            "name": "Salmon",
+            "isSafe": true,
+            "description": "Good for coat health."
+        },
+        {
+            "id": "dog_f5",
+            "species": "dog",
+            "name": "Chocolate",
+            "isSafe": false,
+            "description": "Highly toxic, causes vomiting and seizures."
+        },
+        {
+            "id": "dog_f6",
+            "species": "dog",
+            "name": "Grapes & Raisins",
+            "isSafe": false,
+            "description": "Causes kidney failure."
+        },
+        {
+            "id": "dog_f7",
+            "species": "dog",
+            "name": "Onions & Garlic",
+            "isSafe": false,
+            "description": "Damages red blood cells."
+        },
+        {
+            "id": "cat_f1",
+            "species": "cat",
+            "name": "Cooked Meat",
+            "isSafe": true,
+            "description": "Excellent protein source."
+        },
+        {
+            "id": "cat_f2",
+            "species": "cat",
+            "name": "Fish",
+            "isSafe": true,
+            "description": "Good in moderation."
+        },
+        {
+            "id": "cat_f3",
+            "species": "cat",
+            "name": "Milk/Dairy",
+            "isSafe": false,
+            "description": "Cats are lactose intolerant."
+        },
+        {
+            "id": "cat_f4",
+            "species": "cat",
+            "name": "Onions & Garlic",
+            "isSafe": false,
+            "description": "Toxic to red blood cells."
+        },
+        {
+            "id": "cat_f5",
+            "species": "cat",
+            "name": "Chocolate",
+            "isSafe": false,
+            "description": "Highly toxic."
+        },
+        {
+            "id": "bird_f1",
+            "species": "bird",
+            "name": "Apples (no seeds)",
+            "isSafe": true,
+            "description": "Good fruit treat."
+        },
+        {
+            "id": "bird_f2",
+            "species": "bird",
+            "name": "Leafy Greens",
+            "isSafe": true,
+            "description": "Excellent vitamins."
+        },
+        {
+            "id": "bird_f3",
+            "species": "bird",
+            "name": "Avocado",
+            "isSafe": false,
+            "description": "Highly toxic to birds."
+        },
+        {
+            "id": "bird_f4",
+            "species": "bird",
+            "name": "Chocolate",
+            "isSafe": false,
+            "description": "Toxic."
+        }
+    ]
+}

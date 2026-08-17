@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/pet.dart';
 import '../../state/app_state.dart';
+import '../../state/encyclopedia_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/pet_utils.dart';
 
 class PetProfileScreen extends StatefulWidget {
   final Pet? pet; // Null if adding a new pet
@@ -31,46 +33,7 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
 
   bool get _isEditMode => widget.pet != null;
 
-  // Species Bounds Constants (in kg)
-  double getMinAge(String species) => 0.0;
-  double getMaxAge(String species) {
-    switch (species.toLowerCase()) {
-      case 'cat':
-        return 25.0;
-      case 'bird':
-        return 80.0;
-      case 'dog':
-      default:
-        return 20.0;
-    }
-  }
-
-  double getMinWeightKg(String species) {
-    switch (species.toLowerCase()) {
-      case 'bird':
-        return 0.01;
-      case 'cat':
-      case 'dog':
-      default:
-        return 0.5;
-    }
-  }
-
-  double getMaxWeightKg(String species) {
-    switch (species.toLowerCase()) {
-      case 'cat':
-        return 12.0;
-      case 'bird':
-        return 2.0;
-      case 'dog':
-      default:
-        return 90.0;
-    }
-  }
-
-  // Weight conversion helpers
-  double kgToLb(double kg) => double.parse((kg * 2.20462).toStringAsFixed(2));
-  double lbToKg(double lb) => double.parse((lb / 2.20462).toStringAsFixed(2));
+  // Replaced with PetUtils
 
   @override
   void initState() {
@@ -99,14 +62,22 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
   }
 
   void _updateBreedList() {
-    final state = Provider.of<AppState>(context, listen: false);
-    final species = state.speciesList.firstWhere(
+    final encyclopedia = Provider.of<EncyclopediaProvider>(context, listen: false);
+    
+    if (encyclopedia.speciesList.isEmpty) {
+      setState(() {
+        _availableBreeds = [];
+      });
+      return;
+    }
+
+    final species = encyclopedia.speciesList.firstWhere(
       (s) => s.id.toLowerCase() == _species.toLowerCase(),
-      orElse: () => state.speciesList.first,
+      orElse: () => encyclopedia.speciesList.first,
     );
 
     setState(() {
-      _availableBreeds = species.breeds.map((b) => b.name).toList();
+      _availableBreeds = encyclopedia.breeds.where((b) => b.species == species.id).map((b) => b.name).toList();
       if (_availableBreeds.isNotEmpty && !_availableBreeds.contains(_breed)) {
         _breed = _availableBreeds.first;
       }
@@ -121,10 +92,10 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
       _isWeightInLb = toLb;
       if (toLb) {
         // kg -> lb
-        _weightController.text = kgToLb(currentVal).toString();
+        _weightController.text = PetUtils.kgToLb(currentVal).toString();
       } else {
         // lb -> kg
-        _weightController.text = lbToKg(currentVal).toString();
+        _weightController.text = PetUtils.lbToKg(currentVal).toString();
       }
     });
   }
@@ -140,7 +111,7 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
 
     // Read weight and store in kg internally
     final inputWeight = double.parse(_weightController.text.trim());
-    _weight = _isWeightInLb ? lbToKg(inputWeight) : inputWeight;
+    _weight = _isWeightInLb ? PetUtils.lbToKg(inputWeight) : inputWeight;
 
     try {
       if (_isEditMode) {
@@ -230,17 +201,18 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
+    final encyclopedia = Provider.of<EncyclopediaProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     final speciesLabel = _species.toUpperCase();
-    final minAge = getMinAge(_species);
-    final maxAge = getMaxAge(_species);
-    final minWeight = getMinWeightKg(_species);
-    final maxWeight = getMaxWeightKg(_species);
+    final minAge = PetUtils.getMinAge(_species);
+    final maxAge = PetUtils.getMaxAge(_species);
+    final minWeight = PetUtils.getMinWeightKg(_species);
+    final maxWeight = PetUtils.getMaxWeightKg(_species);
 
-    final displayMinWeight = _isWeightInLb ? kgToLb(minWeight) : minWeight;
-    final displayMaxWeight = _isWeightInLb ? kgToLb(maxWeight) : maxWeight;
+    final displayMinWeight = _isWeightInLb ? PetUtils.kgToLb(minWeight) : minWeight;
+    final displayMaxWeight = _isWeightInLb ? PetUtils.kgToLb(maxWeight) : maxWeight;
     final unitLabel = _isWeightInLb ? 'lb' : 'kg';
 
     return Scaffold(
@@ -272,7 +244,7 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(0.12),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -340,7 +312,7 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
                               _updateBreedList();
                             }
                           },
-                          items: state.speciesList.map((s) {
+                          items: encyclopedia.speciesList.map((s) {
                             return DropdownMenuItem<String>(
                               value: s.id,
                               child: Text(s.name),
@@ -421,6 +393,14 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
                         }
                         return null;
                       },
+                      onChanged: (value) {
+                        final parsed = double.tryParse(value.trim());
+                        if (parsed != null) {
+                          setState(() {
+                            _age = parsed;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 20),
 
@@ -476,6 +456,50 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+
+                    // Growth Stage Info Card
+                    Builder(
+                      builder: (context) {
+                        final stage = PetUtils.getGrowthStage(encyclopedia.growthStages, _species, _age);
+                        if (stage == null) return const SizedBox.shrink();
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.tealSecondary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.tealSecondary.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.info_outline_rounded, color: AppTheme.tealSecondary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${stage.stageName} Stage',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.tealDark),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      stage.description,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white70 : Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    ),
                     const SizedBox(height: 36),
 
                     // Commit Button
@@ -492,3 +516,10 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
     );
   }
 }
+
+
+
+
+
+
+

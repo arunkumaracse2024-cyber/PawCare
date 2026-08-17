@@ -1,0 +1,7 @@
+{
+    "species": [
+        {"id": "dog", "name": "Dog"},
+        {"id": "cat", "name": "Cat"},
+        {"id": "bird", "name": "Bird"}
+    ]
+}

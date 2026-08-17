@@ -9,6 +9,7 @@ import '../models/pet.dart';
 import '../models/reminder.dart';
 import '../models/behaviour_log.dart';
 import '../models/health_record.dart';
+import '../models/weight_record.dart';
 import '../models/user_profile.dart';
 import '../models/appointment.dart';
 import '../models/vet_profile.dart';
@@ -16,13 +17,27 @@ import '../models/shop_profile.dart';
 import '../models/care_note.dart';
 import '../models/time_slot.dart';
 
+import '../repositories/pet_repository.dart';
+import '../repositories/reminder_repository.dart';
+import '../repositories/behaviour_repository.dart';
+import '../repositories/health_record_repository.dart';
+import '../repositories/weight_repository.dart';
+
+
 // Storage key used in SharedPreferences for the local mock database.
 const _kLocalDbKey = 'pawcare_db';
 
-class FirebaseService {
-  static final FirebaseService _instance = FirebaseService._internal();
-  factory FirebaseService() => _instance;
-  FirebaseService._internal();
+class LocalDataService {
+  static final LocalDataService _instance = LocalDataService._internal();
+  factory LocalDataService() => _instance;
+  LocalDataService._internal();
+
+  
+  final PetRepository _petRepo = PetRepository();
+  final ReminderRepository _reminderRepo = ReminderRepository();
+  final BehaviourRepository _behaviourRepo = BehaviourRepository();
+  final HealthRecordRepository _healthRecordRepo = HealthRecordRepository();
+  final WeightRepository _weightRepo = WeightRepository();
 
   bool _initialized = false;
   bool get isRealFirebase => _initialized;
@@ -30,10 +45,10 @@ class FirebaseService {
   // In-memory local database used when Firebase is not configured.
   Map<String, dynamic> _localDb = {
     'users': {},
-    'pets': {},
-    'reminders': {},
-    'behaviourLogs': {},
-    'healthRecords': {},
+    
+    
+    
+    
     'appointments': {},
     'vetProfiles': {},
     'shopProfiles': {},
@@ -42,6 +57,12 @@ class FirebaseService {
     'currentUserEmail': null,
     'currentUid': null,
   };
+
+
+  Future<void> addWeightRecord(WeightRecord record) async => await _weightRepo.insertWeightRecord(record);
+  Future<void> updateWeightRecord(WeightRecord record) async => await _weightRepo.updateWeightRecord(record);
+  Future<void> deleteWeightRecord(String id) async => await _weightRepo.deleteWeightRecord(id);
+  Future<List<WeightRecord>> getWeightHistory(String petId) async => await _weightRepo.getWeightHistory(petId);
 
   // ---------------------------------------------------------------------------
   // Type-safe map helpers (needed because JSON decode produces dynamic maps)
@@ -75,7 +96,7 @@ class FirebaseService {
     if (Firebase.apps.isNotEmpty) {
       // Firebase was already initialised (e.g. hot-restart in native).
       _initialized = true;
-      debugPrint('[FirebaseService] Using already-initialised Firebase SDK.');
+      debugPrint('[LocalDataService] Using already-initialised Firebase SDK.');
       return;
     }
 
@@ -84,12 +105,12 @@ class FirebaseService {
       // On native it reads google-services.json / GoogleService-Info.plist.
       await Firebase.initializeApp();
       _initialized = true;
-      debugPrint('[FirebaseService] Firebase initialised successfully.');
+      debugPrint('[LocalDataService] Firebase initialised successfully.');
     } catch (_) {
       // Firebase is not configured for this platform/environment.
       // This is expected during local/demo development. Fall through silently.
       _initialized = false;
-      debugPrint('[FirebaseService] Firebase not configured — running in local demo mode.');
+      debugPrint('[LocalDataService] Firebase not configured — running in local demo mode.');
       await _loadLocalDb();
     }
   }
@@ -107,13 +128,13 @@ class FirebaseService {
         final decoded = json.decode(stored);
         if (decoded is Map) {
           _localDb = Map<String, dynamic>.from(decoded);
-          debugPrint('[FirebaseService] Local database loaded from SharedPreferences.');
+          debugPrint('[LocalDataService] Local database loaded from SharedPreferences.');
         }
       } else {
-        debugPrint('[FirebaseService] No existing local database — seeding mock data.');
+        debugPrint('[LocalDataService] No existing local database — seeding mock data.');
       }
     } catch (e) {
-      debugPrint('[FirebaseService] Could not load local database: $e');
+      debugPrint('[LocalDataService] Could not load local database: $e');
     }
     _seedMockDataIfNeeded();
   }
@@ -123,7 +144,7 @@ class FirebaseService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kLocalDbKey, json.encode(_localDb));
     } catch (e) {
-      debugPrint('[FirebaseService] Could not save local database: $e');
+      debugPrint('[LocalDataService] Could not save local database: $e');
     }
   }
 
@@ -133,7 +154,7 @@ class FirebaseService {
 
   void _seedMockDataIfNeeded() {
     if (_getCollection('pets').isEmpty) {
-      debugPrint('[FirebaseService] Seeding initial mock data to local DB...');
+      debugPrint('[LocalDataService] Seeding initial mock data to local DB...');
 
       const mockOwnerUid = 'mock_owner_123';
       _getCollection('users')[mockOwnerUid] = {
@@ -378,7 +399,7 @@ class FirebaseService {
       }
     } else {
       await Future.delayed(const Duration(milliseconds: 300));
-      debugPrint('[FirebaseService] Mock password reset email sent to $email');
+      debugPrint('[LocalDataService] Mock password reset email sent to $email');
     }
   }
 
@@ -433,80 +454,27 @@ class FirebaseService {
   // ---------------------------------------------------------------------------
 
   Future<List<Pet>> fetchPets(String ownerUid) async {
-    if (_initialized) {
-      final snap = await firestore.FirebaseFirestore.instance
-          .collection('pets')
-          .where('ownerUid', isEqualTo: ownerUid)
-          .get();
-      return snap.docs.map((d) => Pet.fromMap(d.data())).toList();
-    }
-    final list = <Pet>[];
-    _getCollection('pets').forEach((id, val) {
-      final p = Pet.fromMap(_castMap(val));
-      if (p.ownerUid == ownerUid) list.add(p);
-    });
-    return list;
+    return await _petRepo.getPetsByOwner(ownerUid);
   }
 
   Future<List<Pet>> fetchShopPets(String shopId) async {
-    if (_initialized) {
-      final snap = await firestore.FirebaseFirestore.instance
-          .collection('pets')
-          .where('shopId', isEqualTo: shopId)
-          .get();
-      return snap.docs.map((d) => Pet.fromMap(d.data())).toList();
-    }
-    final list = <Pet>[];
-    _getCollection('pets').forEach((id, val) {
-      final p = Pet.fromMap(_castMap(val));
-      if (p.shopId == shopId) list.add(p);
-    });
-    return list;
+    return await _petRepo.getPetsByShop(shopId);
   }
 
   Future<void> savePet(Pet pet) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('pets')
-          .doc(pet.id)
-          .set(pet.toMap());
-    } else {
-      _getCollection('pets')[pet.id] = pet.toMap();
-      await _saveLocalDb();
-    }
+    await _petRepo.savePet(pet);
   }
 
   Future<void> deletePet(String petId) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('pets')
-          .doc(petId)
-          .delete();
-    } else {
-      _getCollection('pets').remove(petId);
-      _getCollection('reminders').removeWhere((k, v) => _castMap(v)['petId'] == petId);
-      _getCollection('behaviourLogs').removeWhere((k, v) => _castMap(v)['petId'] == petId);
-      _getCollection('healthRecords').removeWhere((k, v) => _castMap(v)['petId'] == petId);
-      _getCollection('careNotes').removeWhere((k, v) => _castMap(v)['petId'] == petId);
-      await _saveLocalDb();
-    }
+    await _petRepo.deletePet(petId);
   }
 
   Future<Pet?> findPetByLinkCode(String linkCode) async {
-    if (_initialized) {
-      final snap = await firestore.FirebaseFirestore.instance
-          .collection('pets')
-          .where('linkCode', isEqualTo: linkCode)
-          .get();
-      if (snap.docs.isNotEmpty) return Pet.fromMap(snap.docs.first.data());
-      return null;
-    }
-    Pet? found;
-    _getCollection('pets').forEach((k, v) {
-      final m = _castMap(v);
-      if (m['linkCode'] == linkCode) found = Pet.fromMap(m);
-    });
-    return found;
+    return await _petRepo.findPetByLinkCode(linkCode);
+  }
+
+  Future<void> acceptPetLink(String petId, String ownerUid) async {
+    await _petRepo.acceptPetLink(petId, ownerUid);
   }
 
   // ---------------------------------------------------------------------------
@@ -587,44 +555,20 @@ class FirebaseService {
   // Reminders
   // ---------------------------------------------------------------------------
 
+  Future<List<PetReminder>> getRemindersForPets(List<String> petIds) async {
+    return await _reminderRepo.getRemindersForPets(petIds);
+  }
+
   Future<List<PetReminder>> fetchReminders(String petId) async {
-    if (_initialized) {
-      final snap = await firestore.FirebaseFirestore.instance
-          .collection('reminders')
-          .where('petId', isEqualTo: petId)
-          .get();
-      return snap.docs.map((d) => PetReminder.fromMap(d.data())).toList();
-    }
-    final list = <PetReminder>[];
-    _getCollection('reminders').forEach((id, val) {
-      final r = PetReminder.fromMap(_castMap(val));
-      if (r.petId == petId) list.add(r);
-    });
-    return list;
+    return await _reminderRepo.getRemindersForPet(petId);
   }
 
   Future<void> saveReminder(PetReminder reminder) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('reminders')
-          .doc(reminder.id)
-          .set(reminder.toMap());
-    } else {
-      _getCollection('reminders')[reminder.id] = reminder.toMap();
-      await _saveLocalDb();
-    }
+    await _reminderRepo.saveReminder(reminder);
   }
 
   Future<void> deleteReminder(String reminderId) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('reminders')
-          .doc(reminderId)
-          .delete();
-    } else {
-      _getCollection('reminders').remove(reminderId);
-      await _saveLocalDb();
-    }
+    await _reminderRepo.deleteReminder(reminderId);
   }
 
   // ---------------------------------------------------------------------------
@@ -632,46 +576,15 @@ class FirebaseService {
   // ---------------------------------------------------------------------------
 
   Future<List<BehaviourLog>> fetchBehaviourLogs(String petId) async {
-    if (_initialized) {
-      final snap = await firestore.FirebaseFirestore.instance
-          .collection('behaviourLogs')
-          .where('petId', isEqualTo: petId)
-          .get();
-      final logs = snap.docs.map((d) => BehaviourLog.fromMap(d.data())).toList();
-      logs.sort((a, b) => b.date.compareTo(a.date));
-      return logs;
-    }
-    final list = <BehaviourLog>[];
-    _getCollection('behaviourLogs').forEach((id, val) {
-      final l = BehaviourLog.fromMap(_castMap(val));
-      if (l.petId == petId) list.add(l);
-    });
-    list.sort((a, b) => b.date.compareTo(a.date));
-    return list;
+    return await _behaviourRepo.getLogsForPet(petId);
   }
 
   Future<void> saveBehaviourLog(BehaviourLog log) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('behaviourLogs')
-          .doc(log.id)
-          .set(log.toMap());
-    } else {
-      _getCollection('behaviourLogs')[log.id] = log.toMap();
-      await _saveLocalDb();
-    }
+    await _behaviourRepo.saveBehaviourLog(log);
   }
 
   Future<void> deleteBehaviourLog(String logId) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('behaviourLogs')
-          .doc(logId)
-          .delete();
-    } else {
-      _getCollection('behaviourLogs').remove(logId);
-      await _saveLocalDb();
-    }
+    await _behaviourRepo.deleteBehaviourLog(logId);
   }
 
   // ---------------------------------------------------------------------------
@@ -679,46 +592,15 @@ class FirebaseService {
   // ---------------------------------------------------------------------------
 
   Future<List<HealthRecord>> fetchHealthRecords(String petId) async {
-    if (_initialized) {
-      final snap = await firestore.FirebaseFirestore.instance
-          .collection('healthRecords')
-          .where('petId', isEqualTo: petId)
-          .get();
-      final records = snap.docs.map((d) => HealthRecord.fromMap(d.data())).toList();
-      records.sort((a, b) => b.date.compareTo(a.date));
-      return records;
-    }
-    final list = <HealthRecord>[];
-    _getCollection('healthRecords').forEach((id, val) {
-      final r = HealthRecord.fromMap(_castMap(val));
-      if (r.petId == petId) list.add(r);
-    });
-    list.sort((a, b) => b.date.compareTo(a.date));
-    return list;
+    return await _healthRecordRepo.getRecordsForPet(petId);
   }
 
   Future<void> saveHealthRecord(HealthRecord record) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('healthRecords')
-          .doc(record.id)
-          .set(record.toMap());
-    } else {
-      _getCollection('healthRecords')[record.id] = record.toMap();
-      await _saveLocalDb();
-    }
+    await _healthRecordRepo.saveHealthRecord(record);
   }
 
   Future<void> deleteHealthRecord(String recordId) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('healthRecords')
-          .doc(recordId)
-          .delete();
-    } else {
-      _getCollection('healthRecords').remove(recordId);
-      await _saveLocalDb();
-    }
+    await _healthRecordRepo.deleteHealthRecord(recordId);
   }
 
   // ---------------------------------------------------------------------------
@@ -876,28 +758,7 @@ class FirebaseService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Pet Link
-  // ---------------------------------------------------------------------------
 
-  Future<void> acceptPetLink(String petId, String ownerUid) async {
-    if (_initialized) {
-      await firestore.FirebaseFirestore.instance
-          .collection('pets')
-          .doc(petId)
-          .update({'ownerUid': ownerUid, 'isLinked': true, 'linkCode': null});
-    } else {
-      final raw = _getCollection('pets')[petId];
-      if (raw != null) {
-        final m = _castMap(raw);
-        m['ownerUid'] = ownerUid;
-        m['isLinked'] = true;
-        m['linkCode'] = null;
-        _getCollection('pets')[petId] = m;
-        await _saveLocalDb();
-      }
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // Partner Vet Invitation

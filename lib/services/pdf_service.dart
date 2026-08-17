@@ -65,25 +65,46 @@ class PdfService {
               ),
               pw.SizedBox(height: 24),
 
+
               // Pet Profile Section
-              pw.Text(
-                'Pet Profile',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300),
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  _buildPdfTableRow('Name', pet.name),
-                  _buildPdfTableRow('Species', pet.species),
-                  _buildPdfTableRow('Breed', pet.breed),
-                  _buildPdfTableRow('Age', '${pet.age} Years'),
-                  _buildPdfTableRow('Weight', '${pet.weight} kg'),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('Pet Profile', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(height: 8),
+                        pw.Table(
+                          border: pw.TableBorder.all(color: PdfColors.grey300),
+                          children: [
+                            _buildPdfTableRow('Name', pet.name),
+                            _buildPdfTableRow('Species', pet.species),
+                            _buildPdfTableRow('Breed', pet.breed.isNotEmpty ? pet.breed : 'Unknown'),
+                            _buildPdfTableRow('Age', '${pet.age} Years'),
+                            _buildPdfTableRow('Weight', pet.weight > 0 ? '${pet.weight} kg' : 'Unknown'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (pet.photoPath.isNotEmpty && File(pet.photoPath).existsSync())
+                    pw.Container(
+                      margin: const pw.EdgeInsets.only(left: 16),
+                      width: 100,
+                      height: 100,
+                      decoration: pw.BoxDecoration(
+                        shape: pw.BoxShape.circle,
+                        image: pw.DecorationImage(
+                          image: pw.MemoryImage(File(pet.photoPath).readAsBytesSync()),
+                          fit: pw.BoxFit.cover,
+                        ),
+                      ),
+                    ),
                 ],
               ),
+
               pw.SizedBox(height: 24),
 
               // Health Records (Vaccines / Medical Reports)
@@ -266,10 +287,15 @@ class PdfService {
       ),
     );
 
-    final output = await getTemporaryDirectory();
-    final file = File(
-      '${output.path}/${pet.name.replaceAll(' ', '_')}_health_report.pdf',
-    );
+    final appDir = await getApplicationDocumentsDirectory();
+    final reportsDir = Directory('${appDir.path}/health_reports');
+    if (!await reportsDir.exists()) {
+      await reportsDir.create(recursive: true);
+    }
+    
+    final fileName = '${pet.name.replaceAll(' ', '_')}_health_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final file = File('${reportsDir.path}/$fileName');
+    
     await file.writeAsBytes(await pdf.save());
     return file;
   }

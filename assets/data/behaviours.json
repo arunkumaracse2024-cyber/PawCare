@@ -1,0 +1,32 @@
+{
+    "behaviours": [
+        {
+            "id": "b1",
+            "species": "dog",
+            "category": "Vocalization",
+            "traitName": "Barking",
+            "description": "Dogs bark for many reasons, including alerting, anxiety, play, or attention-seeking."
+        },
+        {
+            "id": "b2",
+            "species": "dog",
+            "category": "Body Language",
+            "traitName": "Tail Wagging",
+            "description": "Usually indicates happiness, but a stiff, slow wag can mean tension."
+        },
+        {
+            "id": "b3",
+            "species": "cat",
+            "category": "Vocalization",
+            "traitName": "Purring",
+            "description": "Often a sign of contentment, but can also indicate pain or stress."
+        },
+        {
+            "id": "b4",
+            "species": "cat",
+            "category": "Body Language",
+            "traitName": "Kneading",
+            "description": "A comforting behavior leftover from kittenhood."
+        }
+    ]
+}

@@ -1,0 +1,52 @@
+{
+    "vaccines": [
+        {
+            "id": "dog_v1",
+            "species": "dog",
+            "name": "DHPP (Distemper, Hepatitis, Parvovirus, Parainfluenza)",
+            "suggestedAge": "6-8 weeks, then every 3-4 weeks until 16 weeks"
+        },
+        {
+            "id": "dog_v2",
+            "species": "dog",
+            "name": "Rabies",
+            "suggestedAge": "12-16 weeks, then booster in 1 year"
+        },
+        {
+            "id": "dog_v3",
+            "species": "dog",
+            "name": "Bordetella (Kennel Cough)",
+            "suggestedAge": "10-12 weeks, updated yearly"
+        },
+        {
+            "id": "cat_v1",
+            "species": "cat",
+            "name": "FVRCP (Rhinotracheitis, Calicivirus, Panleukopenia)",
+            "suggestedAge": "6-8 weeks, then every 3-4 weeks until 16 weeks"
+        },
+        {
+            "id": "cat_v2",
+            "species": "cat",
+            "name": "Rabies",
+            "suggestedAge": "12-16 weeks, then booster in 1 year"
+        },
+        {
+            "id": "cat_v3",
+            "species": "cat",
+            "name": "FeLV (Feline Leukemia Virus)",
+            "suggestedAge": "8 weeks, then booster in 3 weeks"
+        },
+        {
+            "id": "bird_v1",
+            "species": "bird",
+            "name": "Polyomavirus",
+            "suggestedAge": "4-5 weeks, booster in 3 weeks"
+        },
+        {
+            "id": "bird_v2",
+            "species": "bird",
+            "name": "Pacheco's Disease",
+            "suggestedAge": "As recommended by avian veterinarian"
+        }
+    ]
+}

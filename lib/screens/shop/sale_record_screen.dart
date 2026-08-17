@@ -78,7 +78,7 @@ class _SaleRecordScreenState extends State<SaleRecordScreen> {
             if (_generatedCode.isNotEmpty) ...[
               // Display generated link code
               Card(
-                color: AppTheme.tealSecondary.withOpacity(0.12),
+                color: AppTheme.tealSecondary.withValues(alpha: 0.12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                   side: const BorderSide(color: AppTheme.tealSecondary, width: 2),
@@ -251,3 +251,4 @@ class _SaleRecordScreenState extends State<SaleRecordScreen> {
     );
   }
 }
+

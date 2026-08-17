@@ -121,7 +121,7 @@ class _PetCatalogScreenState extends State<PetCatalogScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: AppTheme.orangePrimary.withOpacity(0.12),
+                            backgroundColor: AppTheme.orangePrimary.withValues(alpha: 0.12),
                             child: Icon(
                               pet.species.toLowerCase() == 'dog'
                                   ? Icons.pets_rounded
@@ -319,3 +319,6 @@ class _PetCatalogScreenState extends State<PetCatalogScreen> {
     );
   }
 }
+
+
+

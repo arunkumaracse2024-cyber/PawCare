@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../theme/app_theme.dart';
-import '../../../state/app_state.dart';
+import '../../../state/encyclopedia_provider.dart';
 import '../../../models/encyclopedia.dart';
+import 'food_search_screen.dart';
 
 class EncyclopediaScreen extends StatefulWidget {
   const EncyclopediaScreen({super.key});
@@ -20,9 +21,9 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
   @override
   void initState() {
     super.initState();
-    final state = Provider.of<AppState>(context, listen: false);
+    final encyclopedia = Provider.of<EncyclopediaProvider>(context, listen: false);
     _tabController = TabController(
-      length: state.speciesList.length,
+      length: encyclopedia.speciesList.length,
       vsync: this,
     );
     _searchController.addListener(() {
@@ -41,11 +42,11 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
 
   @override
   Widget build(BuildContext context) {
-    final state = Provider.of<AppState>(context);
+    final encyclopedia = Provider.of<EncyclopediaProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    if (state.speciesList.isEmpty) {
+    if (encyclopedia.speciesList.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Encyclopedia')),
         body: const Center(child: CircularProgressIndicator()),
@@ -55,12 +56,25 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pet Encyclopedia'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.restaurant_menu_rounded),
+            tooltip: 'Food Safety Search',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const FoodSearchScreen(),
+                ),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.orangePrimary,
           labelColor: AppTheme.orangeDeep,
           unselectedLabelColor: isDark ? Colors.white60 : Colors.black45,
-          tabs: state.speciesList.map((s) => Tab(text: s.name)).toList(),
+          tabs: encyclopedia.speciesList.map((s) => Tab(text: s.name)).toList(),
         ),
       ),
       body: Column(
@@ -86,8 +100,9 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: state.speciesList.map((species) {
-                final filteredBreeds = species.breeds.where((b) {
+              children: encyclopedia.speciesList.map((species) {
+                final speciesBreeds = encyclopedia.breeds.where((b) => b.species == species.id).toList();
+                final filteredBreeds = speciesBreeds.where((b) {
                   return b.name.toLowerCase().contains(_searchQuery) ||
                       b.temperament.toLowerCase().contains(_searchQuery);
                 }).toList();
@@ -162,7 +177,7 @@ class _EncyclopediaScreenState extends State<EncyclopediaScreen>
                 tag: 'breed_avatar_${breed.id}',
                 child: CircleAvatar(
                   radius: 36,
-                  backgroundColor: avatarColor.withOpacity(0.15),
+                  backgroundColor: avatarColor.withValues(alpha: 0.15),
                   child: Icon(speciesIcon, color: avatarColor, size: 36),
                 ),
               ),
@@ -207,6 +222,7 @@ class BreedDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final encyclopedia = Provider.of<EncyclopediaProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -231,7 +247,7 @@ class BreedDetailScreen extends StatelessWidget {
           children: [
             // Hero Header Card
             Card(
-              color: avatarColor.withOpacity(0.12),
+              color: avatarColor.withValues(alpha: 0.12),
               margin: EdgeInsets.zero,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -318,13 +334,52 @@ class BreedDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
+            // Environment Recommendations
+            if (encyclopedia.environments.any((e) => e.species == species.id)) ...[
+              const Text(
+                'Environment Setup',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              ...encyclopedia.environments.where((e) => e.species == species.id).map((env) {
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.home_outlined, color: AppTheme.tealSecondary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                env.title,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          env.description,
+                          style: const TextStyle(fontSize: 14, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 24),
+            ],
+
             // Fun Fact Action Alert
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.12),
+                color: Colors.amber.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -351,8 +406,8 @@ class BreedDetailScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             color: isDark
-                                ? Colors.white.withOpacity(0.8)
-                                : Colors.black.withOpacity(0.8),
+                                ? Colors.white.withValues(alpha: 0.8)
+                                : Colors.black.withValues(alpha: 0.8),
                             height: 1.3,
                           ),
                         ),
@@ -376,7 +431,7 @@ class BreedDetailScreen extends StatelessWidget {
                 Expanded(
                   child: _buildFoodContainer(
                     title: 'Safe Foods',
-                    foods: species.safeFoods,
+                    foods: encyclopedia.foods.where((f) => f.species == species.id && f.isSafe).map((f) => f.name).toList(),
                     isSafe: true,
                     isDark: isDark,
                   ),
@@ -385,7 +440,7 @@ class BreedDetailScreen extends StatelessWidget {
                 Expanded(
                   child: _buildFoodContainer(
                     title: 'Toxic Foods',
-                    foods: species.unsafeFoods,
+                    foods: encyclopedia.foods.where((f) => f.species == species.id && !f.isSafe).map((f) => f.name).toList(),
                     isSafe: false,
                     isDark: isDark,
                   ),
@@ -404,7 +459,7 @@ class BreedDetailScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
-                  children: species.recommendedVaccines.map((v) {
+                  children: encyclopedia.vaccines.where((v) => v.species == species.id).map((v) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: Row(
@@ -458,7 +513,7 @@ class BreedDetailScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.08),
+                color: Colors.redAccent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -499,7 +554,7 @@ class BreedDetailScreen extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: color.withOpacity(0.2)),
+        side: BorderSide(color: color.withValues(alpha: 0.2)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -539,7 +594,7 @@ class BreedDetailScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accentColor.withOpacity(0.25)),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,3 +644,8 @@ class BreedDetailScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+
+

@@ -14,7 +14,6 @@ class ShopDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
-    final theme = Theme.of(context);
 
     final listedPets = state.shopPets.where((p) => !p.isLinked).toList();
     final soldPets = state.shopPets.where((p) => p.isLinked).toList();
@@ -234,7 +233,7 @@ class ShopDashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               CircleAvatar(
-                backgroundColor: color.withOpacity(0.12),
+                backgroundColor: color.withValues(alpha: 0.12),
                 child: Icon(icon, color: color),
               ),
               Column(
@@ -258,3 +257,4 @@ class ShopDashboardScreen extends StatelessWidget {
     );
   }
 }
+
